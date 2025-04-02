@@ -15,10 +15,12 @@ import { Video, Upload, Check, Info } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
 
 const SubmitFeedback = () => {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const { userName } = useAuth();
   
   // Form state
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -116,7 +118,9 @@ const SubmitFeedback = () => {
         <div className="container max-w-3xl mx-auto px-4">
           <div className="mb-8">
             <h1 className="text-3xl font-bold">Submit Feedback</h1>
-            <p className="text-foreground/70">Share your honest opinion and earn rewards</p>
+            <p className="text-foreground/70">
+              {userName ? `Hi ${userName}, share your honest opinion and earn rewards` : 'Share your honest opinion and earn rewards'}
+            </p>
           </div>
 
           <Card className="shadow-sm border-opacity-50">

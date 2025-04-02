@@ -1,16 +1,19 @@
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart, DollarSign, Filter, Search, Upload, User, Video } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/components/ui/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import downloadReport from "@/utils/downloadReport";
 
 const BrandDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -18,66 +21,83 @@ const BrandDashboard = () => {
   const [ageFilter, setAgeFilter] = useState("all");
   const [genderFilter, setGenderFilter] = useState("all");
   const [locationFilter, setLocationFilter] = useState("all");
+  const { toast } = useToast();
+  const isMobile = useIsMobile();
+  const { userName } = useAuth();
 
   // Mock feedback data
   const feedbackData = [
     {
       id: 1,
-      user: "Priya Sharma",
+      product: "Wireless Earbuds Pro",
+      user: "Rahul S.",
       age: 28,
-      gender: "Female",
+      gender: "male",
       location: "Mumbai",
-      product: "Premium Wireless Headphones",
-      rating: 4.5,
-      sentiment: "Positive",
-      date: "2023-07-15",
-      videoUrl: "#",
-      feedback: "Great sound quality and comfortable fit. Battery life could be better."
+      rating: 4,
+      date: "2023-06-15",
+      feedback: "Great sound quality but the battery life could be better. I love the noise cancellation feature."
     },
     {
       id: 2,
-      user: "Rahul Verma",
-      age: 34,
-      gender: "Male",
+      product: "Smart Watch Series X",
+      user: "Priya M.",
+      age: 32,
+      gender: "female",
       location: "Delhi",
-      product: "Bluetooth Speaker",
-      rating: 3.5,
-      sentiment: "Neutral",
-      date: "2023-07-10",
-      videoUrl: "#",
-      feedback: "Good sound but connectivity issues sometimes."
+      rating: 5,
+      date: "2023-06-18",
+      feedback: "This is the best smart watch I've ever used. The fitness tracking is incredibly accurate."
     },
     {
       id: 3,
-      user: "Ananya Patel",
-      age: 22,
-      gender: "Female",
+      product: "Bluetooth Speaker Ultra",
+      user: "Amit K.",
+      age: 24,
+      gender: "male",
       location: "Bangalore",
-      product: "Fitness Tracker",
-      rating: 5.0,
-      sentiment: "Positive",
-      date: "2023-07-05",
-      videoUrl: "#",
-      feedback: "Love all the features and the battery lasts for days!"
+      rating: 3,
+      date: "2023-06-20",
+      feedback: "Good sound but it disconnects sometimes. The battery life is excellent though."
     },
     {
       id: 4,
-      user: "Vikram Singh",
-      age: 42,
-      gender: "Male",
-      location: "Chennai",
-      product: "Smart Home Speaker",
-      rating: 2.5,
-      sentiment: "Negative",
-      date: "2023-06-28",
-      videoUrl: "#",
-      feedback: "Voice recognition is poor and setup was complicated."
+      product: "Wireless Earbuds Pro",
+      user: "Sneha P.",
+      age: 26,
+      gender: "female",
+      location: "Mumbai",
+      rating: 4,
+      date: "2023-06-22",
+      feedback: "Comfortable fit and great for workouts. The touch controls are a bit sensitive."
     },
+    {
+      id: 5,
+      product: "Smart Watch Series X",
+      user: "Vikram S.",
+      age: 35,
+      gender: "male",
+      location: "Chennai",
+      rating: 2,
+      date: "2023-06-25",
+      feedback: "The watch looks premium but has software bugs. The step counter is inaccurate."
+    },
+    {
+      id: 6,
+      product: "Bluetooth Speaker Ultra",
+      user: "Neha R.",
+      age: 29,
+      gender: "female",
+      location: "Delhi",
+      rating: 5,
+      date: "2023-06-28",
+      feedback: "Amazing speaker with clear sound. Perfect for outdoor gatherings!"
+    }
   ];
 
-  // Filter feedback data based on search and filters
-  const filteredFeedback = feedbackData.filter((feedback) => {
-    const matchesSearch = searchTerm === "" || 
+  // Filter the feedback data based on search term and filters
+  const filteredFeedback = feedbackData.filter(feedback => {
+    const matchesSearch = 
       feedback.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
       feedback.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       feedback.feedback.toLowerCase().includes(searchTerm.toLowerCase());
@@ -95,13 +115,26 @@ const BrandDashboard = () => {
     return matchesSearch && matchesAge && matchesGender && matchesLocation;
   });
 
-  const getSentimentColor = (sentiment: string) => {
-    switch (sentiment.toLowerCase()) {
-      case 'positive': return 'bg-green-100 text-green-800';
-      case 'negative': return 'bg-red-100 text-red-800';
-      case 'neutral': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
+  // Rating distribution data
+  const ratingDistribution = {
+    5: feedbackData.filter(item => item.rating === 5).length,
+    4: feedbackData.filter(item => item.rating === 4).length,
+    3: feedbackData.filter(item => item.rating === 3).length,
+    2: feedbackData.filter(item => item.rating === 2).length,
+    1: feedbackData.filter(item => item.rating === 1).length,
+  };
+
+  // Rating percentage
+  const totalRatings = feedbackData.length;
+  const averageRating = feedbackData.reduce((sum, item) => sum + item.rating, 0) / totalRatings;
+
+  // Handle download report
+  const handleDownloadReport = () => {
+    downloadReport(filteredFeedback, userName || "YourBrand");
+    toast({
+      title: "Report downloaded",
+      description: "Your feedback report has been downloaded successfully.",
+    });
   };
 
   return (
@@ -113,125 +146,141 @@ const BrandDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">Brand Dashboard</h1>
-              <p className="text-foreground/70">Welcome back, Nike Team!</p>
+              <p className="text-foreground/70">Welcome back, {userName || "Brand Partner"}!</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
+              <Button 
+                onClick={handleDownloadReport}
+                className="w-full sm:w-auto flex items-center gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Download Report
+              </Button>
             </div>
           </div>
 
           <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
-            <TabsList className="grid grid-cols-3 md:w-[400px]">
+            <TabsList className="grid grid-cols-3 md:grid-cols-3 md:w-[400px]">
               <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="feedback">All Feedback</TabsTrigger>
-              <TabsTrigger value="insights">Analytics</TabsTrigger>
+              <TabsTrigger value="feedback">Feedback</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="space-y-4">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
+                <Card className="shadow-sm hover:shadow-md transition-shadow">
                   <CardContent className="p-6 flex items-center space-x-4">
                     <div className="bg-primary/10 p-3 rounded-full">
                       <Video className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Feedback</p>
-                      <h3 className="text-2xl font-bold">142</h3>
+                      <h3 className="text-2xl font-bold">{feedbackData.length}</h3>
                     </div>
                   </CardContent>
                 </Card>
                 
-                <Card>
+                <Card className="shadow-sm hover:shadow-md transition-shadow">
                   <CardContent className="p-6 flex items-center space-x-4">
                     <div className="bg-primary/10 p-3 rounded-full">
-                      <User className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Unique Contributors</p>
-                      <h3 className="text-2xl font-bold">86</h3>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <BarChart className="h-6 w-6 text-primary" />
+                      <Activity className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Average Rating</p>
-                      <h3 className="text-2xl font-bold">4.2/5.0</h3>
+                      <h3 className="text-2xl font-bold">{averageRating.toFixed(1)}/5.0</h3>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="shadow-sm hover:shadow-md transition-shadow">
+                  <CardContent className="p-6 flex items-center space-x-4">
+                    <div className="bg-primary/10 p-3 rounded-full">
+                      <BarChart3 className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Positive Feedback</p>
+                      <h3 className="text-2xl font-bold">
+                        {Math.round((ratingDistribution[4] + ratingDistribution[5]) / totalRatings * 100)}%
+                      </h3>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Sentiment Analysis Card */}
-              <Card>
+              {/* Rating Distribution Card */}
+              <Card className="shadow-sm">
                 <CardHeader>
-                  <CardTitle>Feedback Sentiment</CardTitle>
-                  <CardDescription>Overall sentiment analysis of product reviews</CardDescription>
+                  <CardTitle>Rating Distribution</CardTitle>
+                  <CardDescription>Breakdown of feedback ratings</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Positive</span>
-                        <span className="text-sm text-muted-foreground">68%</span>
-                      </div>
-                      <Progress value={68} className="bg-muted h-2" />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Neutral</span>
-                        <span className="text-sm text-muted-foreground">22%</span>
-                      </div>
-                      <Progress value={22} className="bg-muted h-2" />
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Negative</span>
-                        <span className="text-sm text-muted-foreground">10%</span>
-                      </div>
-                      <Progress value={10} className="bg-muted h-2" />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Recent Feedback Card */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Feedback</CardTitle>
-                  <CardDescription>Latest customer reviews for your products</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {feedbackData.slice(0, 3).map((feedback) => (
-                      <div key={feedback.id} className="flex items-start space-x-3 p-4 border rounded-lg">
-                        <div className="bg-primary/10 p-2 rounded-full">
-                          <Video className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex justify-between">
-                            <p className="font-medium">{feedback.user}</p>
-                            <span className={`text-xs px-2 py-1 rounded ${getSentimentColor(feedback.sentiment)}`}>
-                              {feedback.sentiment}
-                            </span>
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <div key={rating} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center">
+                            <span className="font-medium mr-2">{rating}</span>
+                            {Array.from({ length: rating }).map((_, i) => (
+                              <svg key={i} className="h-4 w-4 fill-amber-400" viewBox="0 0 20 20">
+                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
+                              </svg>
+                            ))}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            {feedback.product} - {feedback.rating}/5.0
-                          </p>
-                          <p className="text-sm">{feedback.feedback}</p>
-                          <p className="text-xs text-muted-foreground">{feedback.date}</p>
+                          <span>{ratingDistribution[rating]} reviews</span>
+                        </div>
+                        <div className="w-full bg-muted rounded-full h-2">
+                          <div 
+                            className={`h-2 rounded-full ${rating >= 4 ? 'bg-green-500' : rating === 3 ? 'bg-amber-500' : 'bg-red-500'}`}
+                            style={{ width: `${(ratingDistribution[rating] / totalRatings) * 100}%` }}
+                          ></div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  
-                  <Button variant="outline" className="w-full mt-4">
-                    View All Feedback
+                </CardContent>
+              </Card>
+
+              {/* Recent Feedback */}
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Recent Feedback</CardTitle>
+                    <CardDescription>Latest customer reviews</CardDescription>
+                  </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link to="#" onClick={() => setActiveTab("feedback")}>
+                      View All
+                    </Link>
                   </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {feedbackData.slice(0, 3).map((feedback) => (
+                      <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                        <div className="flex justify-between mb-2">
+                          <div>
+                            <h4 className="font-medium">{feedback.product}</h4>
+                            <p className="text-sm text-muted-foreground">by {feedback.user}</p>
+                          </div>
+                          <Badge 
+                            className={`${
+                              feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
+                              feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
+                              'bg-red-100 text-red-800 border-red-200'
+                            }`}
+                          >
+                            {feedback.rating}/5
+                          </Badge>
+                        </div>
+                        <p className="text-sm">{feedback.feedback}</p>
+                        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                          <span>{feedback.date}</span>
+                          <span>{feedback.location}, {feedback.age} y/o, {feedback.gender}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -239,302 +288,165 @@ const BrandDashboard = () => {
             <TabsContent value="feedback" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>All Feedback</CardTitle>
-                  <CardDescription>Filter and analyze customer reviews</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {/* Search and Filter Controls */}
-                  <div className="grid gap-4 mb-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-5">
-                    <div className="col-span-1 md:col-span-2">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <div>
+                      <CardTitle>All Feedback</CardTitle>
+                      <CardDescription>
+                        Browse and filter all customer feedback
+                      </CardDescription>
+                    </div>
+                    <div className="w-full md:w-auto">
                       <div className="relative">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="search"
                           placeholder="Search feedback..."
-                          className="pl-8"
+                          className="pl-8 md:w-[300px]"
                           value={searchTerm}
                           onChange={(e) => setSearchTerm(e.target.value)}
                         />
                       </div>
                     </div>
-                    
-                    <div>
-                      <Select value={ageFilter} onValueChange={setAgeFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Age" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Ages</SelectItem>
-                          <SelectItem value="18-24">18-24</SelectItem>
-                          <SelectItem value="25-34">25-34</SelectItem>
-                          <SelectItem value="35-44">35-44</SelectItem>
-                          <SelectItem value="45+">45+</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Select value={genderFilter} onValueChange={setGenderFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Genders</SelectItem>
-                          <SelectItem value="male">Male</SelectItem>
-                          <SelectItem value="female">Female</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div>
-                      <Select value={locationFilter} onValueChange={setLocationFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">All Locations</SelectItem>
-                          <SelectItem value="mumbai">Mumbai</SelectItem>
-                          <SelectItem value="delhi">Delhi</SelectItem>
-                          <SelectItem value="bangalore">Bangalore</SelectItem>
-                          <SelectItem value="chennai">Chennai</SelectItem>
-                          <SelectItem value="hyderabad">Hyderabad</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                   </div>
-                  
-                  {/* Feedback Table */}
-                  <div className="rounded-md border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Product</TableHead>
-                          <TableHead className="hidden md:table-cell">Demographics</TableHead>
-                          <TableHead>Rating</TableHead>
-                          <TableHead className="hidden md:table-cell">Sentiment</TableHead>
-                          <TableHead className="hidden md:table-cell">Date</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredFeedback.length > 0 ? (
-                          filteredFeedback.map((feedback) => (
-                            <TableRow key={feedback.id}>
-                              <TableCell className="font-medium">{feedback.user}</TableCell>
-                              <TableCell>{feedback.product}</TableCell>
-                              <TableCell className="hidden md:table-cell">
-                                {feedback.age}, {feedback.gender}, {feedback.location}
-                              </TableCell>
-                              <TableCell>{feedback.rating}/5.0</TableCell>
-                              <TableCell className="hidden md:table-cell">
-                                <Badge className={getSentimentColor(feedback.sentiment)}>
-                                  {feedback.sentiment}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="hidden md:table-cell">{feedback.date}</TableCell>
-                              <TableCell className="text-right">
-                                <Button size="sm" variant="outline">View</Button>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} className="h-24 text-center">
-                              No feedback found matching your filters.
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="bg-muted rounded-lg p-4 mb-6">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Filter className="h-4 w-4 text-muted-foreground" />
+                          <h3 className="font-medium text-sm">Filters</h3>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div>
+                            <Select 
+                              value={ageFilter} 
+                              onValueChange={setAgeFilter}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Age" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Ages</SelectItem>
+                                <SelectItem value="18-24">18-24</SelectItem>
+                                <SelectItem value="25-34">25-34</SelectItem>
+                                <SelectItem value="35-44">35-44</SelectItem>
+                                <SelectItem value="45+">45+</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Select 
+                              value={genderFilter} 
+                              onValueChange={setGenderFilter}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Gender" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Genders</SelectItem>
+                                <SelectItem value="male">Male</SelectItem>
+                                <SelectItem value="female">Female</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Select 
+                              value={locationFilter} 
+                              onValueChange={setLocationFilter}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Location" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="all">All Locations</SelectItem>
+                                <SelectItem value="mumbai">Mumbai</SelectItem>
+                                <SelectItem value="delhi">Delhi</SelectItem>
+                                <SelectItem value="bangalore">Bangalore</SelectItem>
+                                <SelectItem value="chennai">Chennai</SelectItem>
+                                <SelectItem value="hyderabad">Hyderabad</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {filteredFeedback.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground">No feedback found matching your filters.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {filteredFeedback.map((feedback) => (
+                          <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
+                              <div>
+                                <h4 className="font-medium">{feedback.product}</h4>
+                                <div className="flex items-center text-sm text-muted-foreground">
+                                  <span>{feedback.user}</span>
+                                  <span className="mx-2">•</span>
+                                  <span>{feedback.date}</span>
+                                </div>
+                              </div>
+                              <Badge 
+                                className={`${
+                                  feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
+                                  feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
+                                  'bg-red-100 text-red-800 border-red-200'
+                                } w-fit`}
+                              >
+                                {feedback.rating}/5
+                              </Badge>
+                            </div>
+                            <p className="mb-3">{feedback.feedback}</p>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
+                                Age: {feedback.age}
+                              </Badge>
+                              <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200">
+                                {feedback.gender}
+                              </Badge>
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
+                                {feedback.location}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center pt-4">
+                      <p className="text-sm text-muted-foreground">
+                        Showing {filteredFeedback.length} of {feedbackData.length} feedback items
+                      </p>
+                      <Button onClick={handleDownloadReport} size="sm" className="flex items-center gap-2">
+                        <Download className="h-4 w-4" />
+                        Export
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
-            <TabsContent value="insights" className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Demographic Insights</CardTitle>
-                    <CardDescription>Breakdown of feedback by demographics</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Age Distribution</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">18-24</span>
-                            <span className="text-xs text-muted-foreground">24%</span>
-                          </div>
-                          <Progress value={24} className="bg-muted h-1.5" />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">25-34</span>
-                            <span className="text-xs text-muted-foreground">38%</span>
-                          </div>
-                          <Progress value={38} className="bg-muted h-1.5" />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">35-44</span>
-                            <span className="text-xs text-muted-foreground">28%</span>
-                          </div>
-                          <Progress value={28} className="bg-muted h-1.5" />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">45+</span>
-                            <span className="text-xs text-muted-foreground">10%</span>
-                          </div>
-                          <Progress value={10} className="bg-muted h-1.5" />
-                        </div>
-                      </div>
-                      
-                      <div>
-                        <h4 className="text-sm font-medium mb-2">Gender Distribution</h4>
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">Male</span>
-                            <span className="text-xs text-muted-foreground">46%</span>
-                          </div>
-                          <Progress value={46} className="bg-muted h-1.5" />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">Female</span>
-                            <span className="text-xs text-muted-foreground">52%</span>
-                          </div>
-                          <Progress value={52} className="bg-muted h-1.5" />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs">Other</span>
-                            <span className="text-xs text-muted-foreground">2%</span>
-                          </div>
-                          <Progress value={2} className="bg-muted h-1.5" />
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Popular Products</CardTitle>
-                    <CardDescription>Most reviewed products</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-primary/10 p-2 rounded">
-                            <Video className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Premium Wireless Headphones</p>
-                            <p className="text-sm text-muted-foreground">42 reviews</p>
-                          </div>
-                        </div>
-                        <Badge>4.4/5.0</Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-primary/10 p-2 rounded">
-                            <Video className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Smart Home Speaker</p>
-                            <p className="text-sm text-muted-foreground">36 reviews</p>
-                          </div>
-                        </div>
-                        <Badge>3.8/5.0</Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-primary/10 p-2 rounded">
-                            <Video className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Bluetooth Speaker</p>
-                            <p className="text-sm text-muted-foreground">29 reviews</p>
-                          </div>
-                        </div>
-                        <Badge>4.1/5.0</Badge>
-                      </div>
-                      
-                      <div className="flex items-center justify-between p-2 border rounded">
-                        <div className="flex items-center space-x-3">
-                          <div className="bg-primary/10 p-2 rounded">
-                            <Video className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">Fitness Tracker</p>
-                            <p className="text-sm text-muted-foreground">24 reviews</p>
-                          </div>
-                        </div>
-                        <Badge>4.7/5.0</Badge>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-              
+            <TabsContent value="analytics" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Common Feedback Themes</CardTitle>
-                  <CardDescription>Key points mentioned across user feedback</CardDescription>
+                  <CardTitle>Analytics Dashboard</CardTitle>
+                  <CardDescription>
+                    Advanced analytics and insights coming soon
+                  </CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-medium mb-2 text-green-600">Positive Themes</h4>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-start">
-                          <div className="bg-green-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          </div>
-                          <span>Sound quality praised in 78% of audio product reviews</span>
-                        </li>
-                        <li className="flex items-start">
-                          <div className="bg-green-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          </div>
-                          <span>Battery life mentioned positively in 65% of wearable reviews</span>
-                        </li>
-                        <li className="flex items-start">
-                          <div className="bg-green-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                          </div>
-                          <span>Design and aesthetics highlighted in 59% of all feedback</span>
-                        </li>
-                      </ul>
-                    </div>
-                    
-                    <div className="p-4 border rounded-lg">
-                      <h4 className="font-medium mb-2 text-red-600">Areas for Improvement</h4>
-                      <ul className="space-y-2 text-sm">
-                        <li className="flex items-start">
-                          <div className="bg-red-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                          </div>
-                          <span>Connectivity issues mentioned in 34% of bluetooth device reviews</span>
-                        </li>
-                        <li className="flex items-start">
-                          <div className="bg-red-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                          </div>
-                          <span>App usability concerns in 28% of smart device feedback</span>
-                        </li>
-                        <li className="flex items-start">
-                          <div className="bg-red-100 p-1 rounded-full mr-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                          </div>
-                          <span>Price point mentioned as concern in 22% of premium product reviews</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+                <CardContent className="flex flex-col items-center justify-center py-12">
+                  <SlidersHorizontal className="h-16 w-16 text-primary/30 mb-4" />
+                  <h3 className="text-xl font-bold mb-2">Advanced Analytics</h3>
+                  <p className="text-center text-muted-foreground max-w-md mb-6">
+                    Our enhanced analytics dashboard is being built. 
+                    Soon you'll have access to detailed insights, trends, and comparative analysis.
+                  </p>
+                  <Button>Request Early Access</Button>
                 </CardContent>
               </Card>
             </TabsContent>

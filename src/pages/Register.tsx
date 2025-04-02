@@ -4,55 +4,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link, useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { Link } from "react-router-dom";
 import { Checkbox } from "@/components/ui/checkbox";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Video } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [role, setRole] = useState<"user" | "brand">("user");
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  const { register } = useAuth();
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (password !== confirmPassword) {
-      toast({
-        title: "Error",
-        description: "Passwords do not match.",
-        variant: "destructive",
-      });
+      alert("Passwords do not match.");
       return;
     }
     
     if (!agreeTerms) {
-      toast({
-        title: "Error",
-        description: "You must agree to the terms and conditions.",
-        variant: "destructive",
-      });
+      alert("You must agree to the terms and conditions.");
       return;
     }
     
     setIsLoading(true);
     
-    // Simulate registration process
     setTimeout(() => {
+      register(name, email, password, role);
       setIsLoading(false);
-      toast({
-        title: "Account created!",
-        description: "You have successfully registered an account.",
-      });
-      navigate("/dashboard");
-    }, 1500);
+    }, 1000);
   };
 
   return (
@@ -66,7 +54,11 @@ const Register = () => {
               <Video className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-2xl font-bold mt-2">Create an account</h1>
-            <p className="text-muted-foreground">Start sharing feedback and earning rewards</p>
+            <p className="text-muted-foreground">
+              {role === "user" 
+                ? "Start sharing feedback and earning rewards" 
+                : "Access valuable customer insights"}
+            </p>
           </div>
           
           <Card>
@@ -79,10 +71,26 @@ const Register = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
+                  <Label>Account Type</Label>
+                  <RadioGroup value={role} onValueChange={(value) => setRole(value as "user" | "brand")}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="user" id="r-user" />
+                      <Label htmlFor="r-user" className="cursor-pointer">Consumer Account</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="brand" id="r-brand" />
+                      <Label htmlFor="r-brand" className="cursor-pointer">Business Account</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="name">
+                    {role === "user" ? "Full Name" : "Company Name"}
+                  </Label>
                   <Input 
                     id="name"
-                    placeholder="John Doe"
+                    placeholder={role === "user" ? "John Doe" : "Acme Corporation"}
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required

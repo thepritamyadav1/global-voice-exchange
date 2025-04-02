@@ -5,37 +5,27 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Video } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"user" | "brand">("user");
   const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login process
     setTimeout(() => {
+      login(email, password, role);
       setIsLoading(false);
-      if (email && password) {
-        toast({
-          title: "Success!",
-          description: "You have been logged in successfully.",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Please enter both email and password.",
-          variant: "destructive",
-        });
-      }
-    }, 1500);
+    }, 1000);
   };
 
   return (
@@ -87,6 +77,19 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Account Type</Label>
+                  <RadioGroup value={role} onValueChange={(value) => setRole(value as "user" | "brand")}>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="user" id="user" />
+                      <Label htmlFor="user" className="cursor-pointer">Consumer Account</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="brand" id="brand" />
+                      <Label htmlFor="brand" className="cursor-pointer">Business Account</Label>
+                    </div>
+                  </RadioGroup>
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
