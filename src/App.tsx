@@ -10,6 +10,9 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import SubmitFeedback from "./pages/SubmitFeedback";
 import NotFound from "./pages/NotFound";
+import HowItWorks from "./pages/HowItWorks";
+import Brands from "./pages/Brands";
+import Contact from "./pages/Contact";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +28,9 @@ const App = () => (
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/submit-feedback" element={<SubmitFeedback />} />
+          <Route path="/how-it-works" element={<HowItWorks />} />
+          <Route path="/brands" element={<Brands />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
