@@ -15,9 +15,9 @@ import { Progress } from "@/components/ui/progress";
 const BrandDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [searchTerm, setSearchTerm] = useState("");
-  const [ageFilter, setAgeFilter] = useState("");
-  const [genderFilter, setGenderFilter] = useState("");
-  const [locationFilter, setLocationFilter] = useState("");
+  const [ageFilter, setAgeFilter] = useState("all");
+  const [genderFilter, setGenderFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
 
   // Mock feedback data
   const feedbackData = [
@@ -82,15 +82,15 @@ const BrandDashboard = () => {
       feedback.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
       feedback.feedback.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesAge = ageFilter === "" || 
+    const matchesAge = ageFilter === "all" || 
       (ageFilter === "18-24" && feedback.age >= 18 && feedback.age <= 24) ||
       (ageFilter === "25-34" && feedback.age >= 25 && feedback.age <= 34) ||
       (ageFilter === "35-44" && feedback.age >= 35 && feedback.age <= 44) ||
       (ageFilter === "45+" && feedback.age >= 45);
     
-    const matchesGender = genderFilter === "" || feedback.gender.toLowerCase() === genderFilter.toLowerCase();
+    const matchesGender = genderFilter === "all" || feedback.gender.toLowerCase() === genderFilter.toLowerCase();
     
-    const matchesLocation = locationFilter === "" || feedback.location.toLowerCase() === locationFilter.toLowerCase();
+    const matchesLocation = locationFilter === "all" || feedback.location.toLowerCase() === locationFilter.toLowerCase();
     
     return matchesSearch && matchesAge && matchesGender && matchesLocation;
   });
@@ -264,7 +264,7 @@ const BrandDashboard = () => {
                           <SelectValue placeholder="Age" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Ages</SelectItem>
+                          <SelectItem value="all">All Ages</SelectItem>
                           <SelectItem value="18-24">18-24</SelectItem>
                           <SelectItem value="25-34">25-34</SelectItem>
                           <SelectItem value="35-44">35-44</SelectItem>
@@ -279,7 +279,7 @@ const BrandDashboard = () => {
                           <SelectValue placeholder="Gender" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Genders</SelectItem>
+                          <SelectItem value="all">All Genders</SelectItem>
                           <SelectItem value="male">Male</SelectItem>
                           <SelectItem value="female">Female</SelectItem>
                           <SelectItem value="other">Other</SelectItem>
@@ -293,7 +293,7 @@ const BrandDashboard = () => {
                           <SelectValue placeholder="Location" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Locations</SelectItem>
+                          <SelectItem value="all">All Locations</SelectItem>
                           <SelectItem value="mumbai">Mumbai</SelectItem>
                           <SelectItem value="delhi">Delhi</SelectItem>
                           <SelectItem value="bangalore">Bangalore</SelectItem>
