@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -9,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Check, ChevronRight, Play, Video, Users, TrendingUp, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
 
 const BrandBenefitCard = ({ icon, title, description }: { 
   icon: React.ReactNode;
