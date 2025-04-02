@@ -1,33 +1,67 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Video, BarChart, DollarSign, Clock, User, Star, Plus, Users } from "lucide-react";
+import { Video, BarChart, DollarSign, Clock, User, Star, Plus } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/contexts/AuthContext";
+import { getUserProfile, getUserFeedback, UserProfile, UserFeedback } from "@/utils/database";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
+  const { userId, userName, isAuthenticated, userRole } = useAuth();
+  
+  // State for user data
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch user data on component mount
+  useEffect(() => {
+    if (isAuthenticated && userId) {
+      const profile = getUserProfile(userId);
+      const feedback = getUserFeedback(userId);
+      
+      setUserProfile(profile);
+      setUserFeedback(feedback);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, userId]);
 
   // Function to handle navigation to submit feedback
   const handleSubmitFeedback = () => {
     navigate("/submit-feedback");
   };
 
-  // Mock data for user points
-  const userPoints = 4500;
-  const userLevel = "Gold Reviewer";
-  const nextLevelPoints = 5000;
-  const pointsToNextLevel = nextLevelPoints - userPoints;
+  // Calculate points to next level
+  const pointsToNextLevel = userProfile ? userProfile.nextLevelPoints - userProfile.points : 0;
+
+  if (!isAuthenticated) {
+    navigate("/login");
+    return null;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <p>Loading your dashboard...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -38,7 +72,7 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">User Dashboard</h1>
-              <p className="text-foreground/70">Welcome back, Priya!</p>
+              <p className="text-foreground/70">Welcome back, {userName || "User"}!</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
               <Button 
@@ -48,13 +82,6 @@ const Dashboard = () => {
                 <Plus className="h-4 w-4" />
                 Submit New Feedback
               </Button>
-              
-              <Link to="/brand-dashboard" className="w-full sm:w-auto">
-                <Button variant="outline" className="w-full flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Brand Dashboard
-                </Button>
-              </Link>
             </div>
           </div>
 
@@ -75,7 +102,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Submissions</p>
-                      <h3 className="text-2xl font-bold">24</h3>
+                      <h3 className="text-2xl font-bold">{userProfile?.totalSubmissions || 0}</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -87,7 +114,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Earnings</p>
-                      <h3 className="text-2xl font-bold">₹12,500</h3>
+                      <h3 className="text-2xl font-bold">₹{userProfile?.totalEarnings || 0}</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -99,48 +126,50 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Pending Reviews</p>
-                      <h3 className="text-2xl font-bold">3</h3>
+                      <h3 className="text-2xl font-bold">{userProfile?.pendingReviews || 0}</h3>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* User Level Card */}
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Your Reviewer Status</CardTitle>
-                  <CardDescription>Current level and progress</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                      <div className="flex items-center">
-                        <div className="bg-yellow-100 p-2 rounded-full mr-3">
-                          <Star className="h-5 w-5 text-yellow-600" />
+              {userProfile && (
+                <Card className="shadow-sm">
+                  <CardHeader>
+                    <CardTitle>Your Reviewer Status</CardTitle>
+                    <CardDescription>Current level and progress</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center">
+                          <div className="bg-yellow-100 p-2 rounded-full mr-3">
+                            <Star className="h-5 w-5 text-yellow-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{userProfile.level}</p>
+                            <p className="text-sm text-muted-foreground">{userProfile.points} points</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{userLevel}</p>
-                          <p className="text-sm text-muted-foreground">{userPoints} points</p>
+                        <Badge variant="outline" className="bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-200 text-yellow-800 w-fit">
+                          Gold Tier
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Next Level: Platinum Reviewer</span>
+                          <span className="text-sm text-muted-foreground">{userProfile.points} of {userProfile.nextLevelPoints} points</span>
                         </div>
+                        <Progress value={(userProfile.points / userProfile.nextLevelPoints) * 100} className="h-2" />
+                        <p className="text-xs text-muted-foreground">
+                          Submit {Math.ceil(pointsToNextLevel / 150)} more reviews to reach Platinum level and unlock premium rewards!
+                        </p>
                       </div>
-                      <Badge variant="outline" className="bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-200 text-yellow-800 w-fit">
-                        Gold Tier
-                      </Badge>
                     </div>
-                    
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium">Next Level: Platinum Reviewer</span>
-                        <span className="text-sm text-muted-foreground">{userPoints} of {nextLevelPoints} points</span>
-                      </div>
-                      <Progress value={(userPoints / nextLevelPoints) * 100} className="h-2" />
-                      <p className="text-xs text-muted-foreground">
-                        Submit {Math.ceil(pointsToNextLevel / 150)} more reviews to reach Platinum level and unlock premium rewards!
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Progress Card */}
               <Card className="shadow-sm">
@@ -153,9 +182,25 @@ const Dashboard = () => {
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Monthly Goal</span>
-                        <span className="text-sm text-muted-foreground">8 of 10 submissions</span>
+                        <span className="text-sm text-muted-foreground">
+                          {userFeedback.filter(f => {
+                            const thisMonth = new Date().getMonth();
+                            const feedbackMonth = new Date(f.date).getMonth();
+                            return thisMonth === feedbackMonth;
+                          }).length} of 10 submissions
+                        </span>
                       </div>
-                      <Progress value={80} className="h-2" />
+                      <Progress 
+                        value={Math.min(
+                          (userFeedback.filter(f => {
+                            const thisMonth = new Date().getMonth();
+                            const feedbackMonth = new Date(f.date).getMonth();
+                            return thisMonth === feedbackMonth;
+                          }).length / 10) * 100, 
+                          100
+                        )} 
+                        className="h-2" 
+                      />
                     </div>
 
                     <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-lg border border-primary/10">
@@ -163,7 +208,11 @@ const Dashboard = () => {
                         <DollarSign className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-sm">
-                        Complete 2 more submissions to reach your goal and unlock a bonus reward!
+                        Complete {Math.max(0, 10 - userFeedback.filter(f => {
+                          const thisMonth = new Date().getMonth();
+                          const feedbackMonth = new Date(f.date).getMonth();
+                          return thisMonth === feedbackMonth;
+                        }).length)} more submissions to reach your goal and unlock a bonus reward!
                       </p>
                     </div>
                   </div>
@@ -181,38 +230,26 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-green-100 p-2 rounded-full">
-                        <DollarSign className="h-4 w-4 text-green-600" />
+                    {userFeedback.slice(0, 3).map((feedback, index) => (
+                      <div key={feedback.id} className="flex items-start space-x-3">
+                        <div className={`bg-${feedback.status === 'approved' ? 'green' : feedback.status === 'pending' ? 'blue' : 'red'}-100 p-2 rounded-full`}>
+                          <Video className={`h-4 w-4 text-${feedback.status === 'approved' ? 'green' : feedback.status === 'pending' ? 'blue' : 'red'}-600`} />
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium">
+                            {feedback.status === 'approved' 
+                              ? 'Feedback Approved' 
+                              : feedback.status === 'pending' 
+                                ? 'Feedback Submitted'
+                                : 'Feedback Rejected'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Your review for {feedback.productName} was {feedback.status}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{feedback.date}</p>
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Payment Processed</p>
-                        <p className="text-xs text-muted-foreground">₹2,500 transferred to your bank account</p>
-                        <p className="text-xs text-muted-foreground">2 days ago</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-blue-100 p-2 rounded-full">
-                        <Video className="h-4 w-4 text-blue-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Feedback Approved</p>
-                        <p className="text-xs text-muted-foreground">Your review for Samsung Galaxy S23 was approved</p>
-                        <p className="text-xs text-muted-foreground">4 days ago</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-start space-x-3">
-                      <div className="bg-purple-100 p-2 rounded-full">
-                        <Star className="h-4 w-4 text-purple-600" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium">Achievement Unlocked</p>
-                        <p className="text-xs text-muted-foreground">You've reached the "Experienced Reviewer" milestone!</p>
-                        <p className="text-xs text-muted-foreground">1 week ago</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
@@ -230,59 +267,59 @@ const Dashboard = () => {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center space-x-4 mb-3 sm:mb-0">
-                        <div className="bg-background p-2 border rounded">
-                          <Video className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Samsung Galaxy S23</p>
-                          <p className="text-sm text-muted-foreground">Smartphones</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>
-                        <span className="text-sm text-muted-foreground mt-1">₹500 earned</span>
-                      </div>
+                  {userFeedback.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">You haven't submitted any feedback yet.</p>
+                      <Button onClick={handleSubmitFeedback} className="mt-4">
+                        Submit Your First Feedback
+                      </Button>
                     </div>
-                    
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center space-x-4 mb-3 sm:mb-0">
-                        <div className="bg-background p-2 border rounded">
-                          <Video className="h-6 w-6 text-primary" />
+                  ) : (
+                    <div className="space-y-4">
+                      {userFeedback.map((feedback) => (
+                        <div 
+                          key={feedback.id} 
+                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="flex items-center space-x-4 mb-3 sm:mb-0">
+                            <div className="bg-background p-2 border rounded">
+                              <Video className="h-6 w-6 text-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{feedback.productName}</p>
+                              <p className="text-sm text-muted-foreground">{feedback.category}</p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
+                            <Badge 
+                              className={
+                                feedback.status === 'approved' 
+                                  ? "bg-green-100 text-green-800 border-green-200"
+                                  : feedback.status === 'pending'
+                                    ? "bg-yellow-50 text-yellow-800 border-yellow-200"
+                                    : "bg-red-100 text-red-800 border-red-200"
+                              }
+                            >
+                              {feedback.status.charAt(0).toUpperCase() + feedback.status.slice(1)}
+                            </Badge>
+                            <span className="text-sm text-muted-foreground mt-1">
+                              {feedback.status === 'approved' 
+                                ? `₹${feedback.reward} earned` 
+                                : feedback.status === 'pending' 
+                                  ? 'Under review'
+                                  : 'Rejected'}
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">Sony WH-1000XM4</p>
-                          <p className="text-sm text-muted-foreground">Audio Equipment</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">Pending</Badge>
-                        <span className="text-sm text-muted-foreground mt-1">Under review</span>
-                      </div>
+                      ))}
                     </div>
-                    
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center space-x-4 mb-3 sm:mb-0">
-                        <div className="bg-background p-2 border rounded">
-                          <Video className="h-6 w-6 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">Dyson V11 Vacuum</p>
-                          <p className="text-sm text-muted-foreground">Home Appliances</p>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                        <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>
-                        <span className="text-sm text-muted-foreground mt-1">₹750 earned</span>
-                      </div>
-                    </div>
-                  </div>
+                  )}
                   
-                  <div className="mt-6 text-center">
-                    <Button variant="outline" className="w-full sm:w-auto">View All Submissions</Button>
-                  </div>
+                  {userFeedback.length > 0 && (
+                    <div className="mt-6 text-center">
+                      <Button variant="outline" className="w-full sm:w-auto">View All Submissions</Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
               
@@ -304,7 +341,12 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Available Balance</p>
-                      <h3 className="text-2xl font-bold">₹3,750</h3>
+                      <h3 className="text-2xl font-bold">₹{
+                        userFeedback
+                          .filter(f => f.status === 'approved' && f.reward)
+                          .reduce((sum, f) => sum + (f.reward || 0), 0) - 
+                        (userProfile?.totalEarnings || 0)
+                      }</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -316,7 +358,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Lifetime Earnings</p>
-                      <h3 className="text-2xl font-bold">₹12,500</h3>
+                      <h3 className="text-2xl font-bold">₹{userProfile?.totalEarnings || 0}</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -328,7 +370,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Reward Tier</p>
-                      <h3 className="text-xl font-bold">Gold Reviewer</h3>
+                      <h3 className="text-xl font-bold">{userProfile?.level || 'Bronze Reviewer'}</h3>
                     </div>
                   </CardContent>
                 </Card>

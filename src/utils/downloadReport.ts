@@ -1,5 +1,22 @@
 
-const downloadReport = (feedbackData: any[], brandName: string = "GlobalVoice") => {
+interface ReportItem {
+  product: string;
+  user: string;
+  age?: number | string;
+  gender?: string;
+  location?: string;
+  rating: number;
+  date: string;
+  feedback: string;
+  videoUrl?: string;
+}
+
+const downloadReport = (feedbackData: ReportItem[], brandName: string = "GlobalVoice") => {
+  if (!feedbackData || feedbackData.length === 0) {
+    console.error("No data to download");
+    return;
+  }
+  
   // Create a CSV string
   const headers = ["Product", "User", "Age", "Gender", "Location", "Rating", "Date", "Feedback"];
   const csvRows = [headers];
@@ -8,14 +25,14 @@ const downloadReport = (feedbackData: any[], brandName: string = "GlobalVoice") 
   feedbackData.forEach(item => {
     const row = [
       item.product,
-      item.user,
-      item.age,
-      item.gender,
-      item.location,
+      item.user || "Anonymous",
+      item.age || "Not specified",
+      item.gender || "Not specified",
+      item.location || "Not specified",
       item.rating,
       item.date,
       // Escape quotes in the feedback text
-      `"${item.feedback.replace(/"/g, '""')}"`
+      `"${item.feedback?.replace(/"/g, '""') || "No feedback provided"}"`
     ];
     csvRows.push(row);
   });

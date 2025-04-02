@@ -22,7 +22,14 @@ import Enterprise from "./pages/Enterprise";
 import Careers from "./pages/Careers";
 import Rewards from "./pages/Rewards";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    }
+  }
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

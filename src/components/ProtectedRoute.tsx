@@ -1,6 +1,7 @@
 
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useEffect } from "react";
 
 interface ProtectedRouteProps {
   redirectPath?: string;
@@ -13,7 +14,12 @@ const ProtectedRoute = ({
   requireAuth,
   allowedRole,
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, userRole } = useAuth();
+  const { isAuthenticated, userRole, checkAuthStatus } = useAuth();
+
+  useEffect(() => {
+    // Check auth status on component mount and when dependencies change
+    checkAuthStatus();
+  }, [checkAuthStatus]);
 
   // If authentication is required but user is not authenticated
   if (requireAuth && !isAuthenticated) {
@@ -21,7 +27,7 @@ const ProtectedRoute = ({
   }
 
   // If specific role is required and user doesn't have it
-  if (requireAuth && allowedRole && userRole !== allowedRole) {
+  if (requireAuth && isAuthenticated && allowedRole && userRole !== allowedRole) {
     if (userRole === "user") {
       return <Navigate to="/dashboard" replace />;
     } else if (userRole === "brand") {

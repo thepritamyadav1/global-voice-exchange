@@ -1,6 +1,6 @@
 
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/components/ui/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
+import { 
+  getBrandProfile, 
+  getBrandFeedback, 
+  getBrandProducts, 
+  getRatingDistribution,
+  UserFeedback,
+  BrandProfile,
+  BrandProduct
+} from "@/utils/database";
 import downloadReport from "@/utils/downloadReport";
 
 const BrandDashboard = () => {
@@ -23,119 +32,94 @@ const BrandDashboard = () => {
   const [locationFilter, setLocationFilter] = useState("all");
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { userName } = useAuth();
+  const { userId, userName, isAuthenticated, userRole } = useAuth();
+  const navigate = useNavigate();
+  
+  // State for brand data
+  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
+  const [brandFeedback, setBrandFeedback] = useState<UserFeedback[]>([]);
+  const [brandProducts, setBrandProducts] = useState<BrandProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Mock feedback data
-  const feedbackData = [
-    {
-      id: 1,
-      product: "Wireless Earbuds Pro",
-      user: "Rahul S.",
-      age: 28,
-      gender: "male",
-      location: "Mumbai",
-      rating: 4,
-      date: "2023-06-15",
-      feedback: "Great sound quality but the battery life could be better. I love the noise cancellation feature."
-    },
-    {
-      id: 2,
-      product: "Smart Watch Series X",
-      user: "Priya M.",
-      age: 32,
-      gender: "female",
-      location: "Delhi",
-      rating: 5,
-      date: "2023-06-18",
-      feedback: "This is the best smart watch I've ever used. The fitness tracking is incredibly accurate."
-    },
-    {
-      id: 3,
-      product: "Bluetooth Speaker Ultra",
-      user: "Amit K.",
-      age: 24,
-      gender: "male",
-      location: "Bangalore",
-      rating: 3,
-      date: "2023-06-20",
-      feedback: "Good sound but it disconnects sometimes. The battery life is excellent though."
-    },
-    {
-      id: 4,
-      product: "Wireless Earbuds Pro",
-      user: "Sneha P.",
-      age: 26,
-      gender: "female",
-      location: "Mumbai",
-      rating: 4,
-      date: "2023-06-22",
-      feedback: "Comfortable fit and great for workouts. The touch controls are a bit sensitive."
-    },
-    {
-      id: 5,
-      product: "Smart Watch Series X",
-      user: "Vikram S.",
-      age: 35,
-      gender: "male",
-      location: "Chennai",
-      rating: 2,
-      date: "2023-06-25",
-      feedback: "The watch looks premium but has software bugs. The step counter is inaccurate."
-    },
-    {
-      id: 6,
-      product: "Bluetooth Speaker Ultra",
-      user: "Neha R.",
-      age: 29,
-      gender: "female",
-      location: "Delhi",
-      rating: 5,
-      date: "2023-06-28",
-      feedback: "Amazing speaker with clear sound. Perfect for outdoor gatherings!"
+  // Fetch brand data on component mount
+  useEffect(() => {
+    if (isAuthenticated && userId && userRole === 'brand') {
+      const profile = getBrandProfile(userId);
+      const feedback = getBrandFeedback(userId);
+      const products = getBrandProducts(userId);
+      
+      setBrandProfile(profile);
+      setBrandFeedback(feedback);
+      setBrandProducts(products);
+      setIsLoading(false);
     }
-  ];
+  }, [isAuthenticated, userId, userRole]);
+
+  if (!isAuthenticated) {
+    navigate("/login");
+    return null;
+  }
+
+  if (userRole !== 'brand') {
+    navigate("/dashboard");
+    return null;
+  }
 
   // Filter the feedback data based on search term and filters
-  const filteredFeedback = feedbackData.filter(feedback => {
+  const filteredFeedback = brandFeedback.filter(feedback => {
     const matchesSearch = 
-      feedback.product.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      feedback.feedback.toLowerCase().includes(searchTerm.toLowerCase());
+      (feedback.productName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (feedback.feedback?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     
-    const matchesAge = ageFilter === "all" || 
-      (ageFilter === "18-24" && feedback.age >= 18 && feedback.age <= 24) ||
-      (ageFilter === "25-34" && feedback.age >= 25 && feedback.age <= 34) ||
-      (ageFilter === "35-44" && feedback.age >= 35 && feedback.age <= 44) ||
-      (ageFilter === "45+" && feedback.age >= 45);
-    
-    const matchesGender = genderFilter === "all" || feedback.gender.toLowerCase() === genderFilter.toLowerCase();
-    
-    const matchesLocation = locationFilter === "all" || feedback.location.toLowerCase() === locationFilter.toLowerCase();
+    const matchesAge = ageFilter === "all";  // In a real app, we'd filter by age
+    const matchesGender = genderFilter === "all";  // In a real app, we'd filter by gender
+    const matchesLocation = locationFilter === "all";  // In a real app, we'd filter by location
     
     return matchesSearch && matchesAge && matchesGender && matchesLocation;
   });
 
   // Rating distribution data
-  const ratingDistribution = {
-    5: feedbackData.filter(item => item.rating === 5).length,
-    4: feedbackData.filter(item => item.rating === 4).length,
-    3: feedbackData.filter(item => item.rating === 3).length,
-    2: feedbackData.filter(item => item.rating === 2).length,
-    1: feedbackData.filter(item => item.rating === 1).length,
-  };
+  const ratingDistribution = getRatingDistribution(brandFeedback);
 
   // Rating percentage
-  const totalRatings = feedbackData.length;
-  const averageRating = feedbackData.reduce((sum, item) => sum + item.rating, 0) / totalRatings;
+  const totalRatings = brandFeedback.length;
+  const averageRating = totalRatings > 0 
+    ? brandFeedback.reduce((sum, item) => sum + item.rating, 0) / totalRatings
+    : 0;
+  const positiveRatings = brandFeedback.filter(item => item.rating >= 4).length;
+  const positivePercentage = totalRatings > 0 ? Math.round((positiveRatings / totalRatings) * 100) : 0;
 
   // Handle download report
   const handleDownloadReport = () => {
-    downloadReport(filteredFeedback, userName || "YourBrand");
+    const reportData = filteredFeedback.map(item => ({
+      product: item.productName,
+      user: "Anonymous User",  // In a real app, we'd include user data (respecting privacy)
+      age: 25,  // Placeholder
+      gender: "Not specified",  // Placeholder
+      location: "Not specified",  // Placeholder
+      rating: item.rating,
+      date: item.date,
+      feedback: item.feedback
+    }));
+    
+    downloadReport(reportData, userName || "YourBrand");
     toast({
       title: "Report downloaded",
       description: "Your feedback report has been downloaded successfully.",
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <Navbar />
+        <div className="flex-grow flex items-center justify-center">
+          <p>Loading your dashboard...</p>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -152,6 +136,7 @@ const BrandDashboard = () => {
               <Button 
                 onClick={handleDownloadReport}
                 className="w-full sm:w-auto flex items-center gap-2"
+                disabled={filteredFeedback.length === 0}
               >
                 <Download className="h-4 w-4" />
                 Download Report
@@ -176,7 +161,7 @@ const BrandDashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Total Feedback</p>
-                      <h3 className="text-2xl font-bold">{feedbackData.length}</h3>
+                      <h3 className="text-2xl font-bold">{brandFeedback.length}</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -200,9 +185,7 @@ const BrandDashboard = () => {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Positive Feedback</p>
-                      <h3 className="text-2xl font-bold">
-                        {Math.round((ratingDistribution[4] + ratingDistribution[5]) / totalRatings * 100)}%
-                      </h3>
+                      <h3 className="text-2xl font-bold">{positivePercentage}%</h3>
                     </div>
                   </CardContent>
                 </Card>
@@ -227,12 +210,12 @@ const BrandDashboard = () => {
                               </svg>
                             ))}
                           </div>
-                          <span>{ratingDistribution[rating]} reviews</span>
+                          <span>{ratingDistribution[rating as keyof typeof ratingDistribution]} reviews</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-2">
                           <div 
                             className={`h-2 rounded-full ${rating >= 4 ? 'bg-green-500' : rating === 3 ? 'bg-amber-500' : 'bg-red-500'}`}
-                            style={{ width: `${(ratingDistribution[rating] / totalRatings) * 100}%` }}
+                            style={{ width: `${totalRatings ? (ratingDistribution[rating as keyof typeof ratingDistribution] / totalRatings) * 100 : 0}%` }}
                           ></div>
                         </div>
                       </div>
@@ -255,32 +238,37 @@ const BrandDashboard = () => {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {feedbackData.slice(0, 3).map((feedback) => (
-                      <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                        <div className="flex justify-between mb-2">
-                          <div>
-                            <h4 className="font-medium">{feedback.product}</h4>
-                            <p className="text-sm text-muted-foreground">by {feedback.user}</p>
+                  {brandFeedback.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No feedback received yet.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {brandFeedback.slice(0, 3).map((feedback) => (
+                        <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                          <div className="flex justify-between mb-2">
+                            <div>
+                              <h4 className="font-medium">{feedback.productName}</h4>
+                              <p className="text-sm text-muted-foreground">by Anonymous User</p>
+                            </div>
+                            <Badge 
+                              className={`${
+                                feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
+                                feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
+                                'bg-red-100 text-red-800 border-red-200'
+                              }`}
+                            >
+                              {feedback.rating}/5
+                            </Badge>
                           </div>
-                          <Badge 
-                            className={`${
-                              feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
-                              feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
-                              'bg-red-100 text-red-800 border-red-200'
-                            }`}
-                          >
-                            {feedback.rating}/5
-                          </Badge>
+                          <p className="text-sm">{feedback.feedback}</p>
+                          <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                            <span>{feedback.date}</span>
+                          </div>
                         </div>
-                        <p className="text-sm">{feedback.feedback}</p>
-                        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                          <span>{feedback.date}</span>
-                          <span>{feedback.location}, {feedback.age} y/o, {feedback.gender}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -383,9 +371,9 @@ const BrandDashboard = () => {
                           <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
                               <div>
-                                <h4 className="font-medium">{feedback.product}</h4>
+                                <h4 className="font-medium">{feedback.productName}</h4>
                                 <div className="flex items-center text-sm text-muted-foreground">
-                                  <span>{feedback.user}</span>
+                                  <span>Anonymous User</span>
                                   <span className="mx-2">•</span>
                                   <span>{feedback.date}</span>
                                 </div>
@@ -401,15 +389,23 @@ const BrandDashboard = () => {
                               </Badge>
                             </div>
                             <p className="mb-3">{feedback.feedback}</p>
+                            {feedback.videoUrl && (
+                              <div className="mb-3">
+                                <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                  <Video className="h-4 w-4" /> 
+                                  Watch Video Review
+                                </Button>
+                              </div>
+                            )}
                             <div className="flex flex-wrap gap-2">
                               <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
-                                Age: {feedback.age}
+                                Age: Not specified
                               </Badge>
                               <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200">
-                                {feedback.gender}
+                                Not specified
                               </Badge>
                               <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                                {feedback.location}
+                                Not specified
                               </Badge>
                             </div>
                           </div>
@@ -419,9 +415,14 @@ const BrandDashboard = () => {
                     
                     <div className="flex justify-between items-center pt-4">
                       <p className="text-sm text-muted-foreground">
-                        Showing {filteredFeedback.length} of {feedbackData.length} feedback items
+                        Showing {filteredFeedback.length} of {brandFeedback.length} feedback items
                       </p>
-                      <Button onClick={handleDownloadReport} size="sm" className="flex items-center gap-2">
+                      <Button 
+                        onClick={handleDownloadReport} 
+                        size="sm" 
+                        className="flex items-center gap-2"
+                        disabled={filteredFeedback.length === 0}
+                      >
                         <Download className="h-4 w-4" />
                         Export
                       </Button>
@@ -446,7 +447,16 @@ const BrandDashboard = () => {
                     Our enhanced analytics dashboard is being built. 
                     Soon you'll have access to detailed insights, trends, and comparative analysis.
                   </p>
-                  <Button>Request Early Access</Button>
+                  <Button 
+                    onClick={() => {
+                      toast({
+                        title: "Request submitted",
+                        description: "We'll notify you when advanced analytics are available.",
+                      });
+                    }}
+                  >
+                    Request Early Access
+                  </Button>
                 </CardContent>
               </Card>
             </TabsContent>
