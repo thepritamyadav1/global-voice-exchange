@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal } from "lucide-react";
+import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal, RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -26,6 +26,7 @@ import { StatCard } from "@/components/dashboards/StatCard";
 import { RatingDistribution } from "@/components/dashboards/RatingDistribution";
 import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
 import BrandFAQ from "@/components/BrandFAQ";
+import { useRealTimeData } from "@/hooks/use-real-time-data";
 
 const BrandDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -35,50 +36,72 @@ const BrandDashboard = () => {
   const [locationFilter, setLocationFilter] = useState("all");
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { userId, userName, isAuthenticated, userRole } = useAuth();
+  const { userId, userName, isAuthenticated, userRole, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   
-  // State for brand data
-  const [brandProfile, setBrandProfile] = useState<BrandProfile | null>(null);
-  const [brandFeedback, setBrandFeedback] = useState<UserFeedback[]>([]);
-  const [brandProducts, setBrandProducts] = useState<BrandProduct[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Use real-time data hook for brand profile
+  const { 
+    data: brandProfile,
+    isLoading: profileLoading,
+    lastUpdated: profileUpdated,
+    refresh: refreshProfile
+  } = useRealTimeData<BrandProfile>({
+    fetchFn: () => userId ? getBrandProfile(userId) : null,
+    enabled: isAuthenticated && !!userId && userRole === 'brand',
+    interval: 5000, // Poll every 5 seconds
+  });
 
-  // Fetch brand data on component mount and at regular intervals
+  // Use real-time data hook for brand feedback
+  const {
+    data: brandFeedback,
+    isLoading: feedbackLoading,
+    lastUpdated: feedbackUpdated,
+    refresh: refreshFeedback
+  } = useRealTimeData<UserFeedback[]>({
+    fetchFn: () => userId ? getBrandFeedback(userId) : [],
+    initialData: [],
+    enabled: isAuthenticated && !!userId && userRole === 'brand',
+    interval: 5000, // Poll every 5 seconds
+  });
+
+  // Use real-time data hook for brand products
+  const {
+    data: brandProducts,
+    isLoading: productsLoading,
+  } = useRealTimeData<BrandProduct[]>({
+    fetchFn: () => userId ? getBrandProducts(userId) : [],
+    initialData: [],
+    enabled: isAuthenticated && !!userId && userRole === 'brand',
+    interval: 15000, // Poll every 15 seconds
+  });
+  
+  const isLoading = authLoading || profileLoading || feedbackLoading || productsLoading;
+  const feedback = brandFeedback || [];
+  const products = brandProducts || [];
+
+  // Function to refresh data manually
+  const handleRefresh = () => {
+    refreshProfile();
+    refreshFeedback();
+    toast({
+      title: "Dashboard refreshed",
+      description: "Your data has been updated.",
+    });
+  };
+
+  // Redirect if not authenticated or not a brand
   useEffect(() => {
-    if (isAuthenticated && userId && userRole === 'brand') {
-      const fetchData = () => {
-        const profile = getBrandProfile(userId);
-        const feedback = getBrandFeedback(userId);
-        const products = getBrandProducts(userId);
-        
-        setBrandProfile(profile);
-        setBrandFeedback(feedback);
-        setBrandProducts(products);
-        setIsLoading(false);
-      };
-      
-      fetchData();
-      
-      // Set up an interval to refresh data every 10 seconds for real-time updates
-      const intervalId = setInterval(fetchData, 10000);
-      
-      return () => clearInterval(intervalId);
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        navigate("/login");
+      } else if (userRole !== 'brand') {
+        navigate("/dashboard");
+      }
     }
-  }, [isAuthenticated, userId, userRole]);
-
-  if (!isAuthenticated) {
-    navigate("/login");
-    return null;
-  }
-
-  if (userRole !== 'brand') {
-    navigate("/dashboard");
-    return null;
-  }
+  }, [authLoading, isAuthenticated, userRole, navigate]);
 
   // Filter the feedback data based on search term and filters
-  const filteredFeedback = brandFeedback.filter(feedback => {
+  const filteredFeedback = feedback.filter(feedback => {
     const matchesSearch = 
       (feedback.productName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
       (feedback.feedback?.toLowerCase() || '').includes(searchTerm.toLowerCase());
@@ -91,11 +114,11 @@ const BrandDashboard = () => {
   });
 
   // Rating percentage
-  const totalRatings = brandFeedback.length;
+  const totalRatings = feedback.length;
   const averageRating = totalRatings > 0 
-    ? brandFeedback.reduce((sum, item) => sum + item.rating, 0) / totalRatings
+    ? feedback.reduce((sum, item) => sum + item.rating, 0) / totalRatings
     : 0;
-  const positiveRatings = brandFeedback.filter(item => item.rating >= 4).length;
+  const positiveRatings = feedback.filter(item => item.rating >= 4).length;
   const positivePercentage = totalRatings > 0 ? Math.round((positiveRatings / totalRatings) * 100) : 0;
 
   // Handle download report
@@ -140,6 +163,11 @@ const BrandDashboard = () => {
             <div>
               <h1 className="text-3xl font-bold">Brand Dashboard</h1>
               <p className="text-foreground/70">Welcome back, {brandProfile?.name || userName || "Brand Partner"}!</p>
+              {feedbackUpdated && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {feedbackUpdated.toLocaleTimeString() || "Just now"}
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
               <Button 
@@ -149,6 +177,14 @@ const BrandDashboard = () => {
               >
                 <Download className="h-4 w-4" />
                 Download Report
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleRefresh}
+                className="w-full sm:w-auto flex items-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh Data
               </Button>
             </div>
           </div>
@@ -166,7 +202,7 @@ const BrandDashboard = () => {
                 <StatCard
                   icon={Video}
                   title="Total Feedback"
-                  value={brandFeedback.length}
+                  value={feedback.length}
                 />
                 
                 <StatCard
@@ -183,7 +219,7 @@ const BrandDashboard = () => {
               </div>
 
               {/* Rating Distribution Card */}
-              <RatingDistribution feedbackList={brandFeedback} />
+              <RatingDistribution feedbackList={feedback} />
 
               {/* Recent Feedback */}
               <Card className="shadow-sm">
@@ -192,40 +228,38 @@ const BrandDashboard = () => {
                     <CardTitle>Recent Feedback</CardTitle>
                     <CardDescription>Latest customer reviews</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
-                    <Link to="#" onClick={() => setActiveTab("feedback")}>
-                      View All
-                    </Link>
+                  <Button variant="outline" size="sm" onClick={() => setActiveTab("feedback")}>
+                    View All
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  {brandFeedback.length === 0 ? (
+                  {feedback.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No feedback received yet.</p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {brandFeedback.slice(0, 3).map((feedback) => (
-                        <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
+                      {feedback.slice(0, 3).map((feedbackItem) => (
+                        <div key={feedbackItem.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                           <div className="flex justify-between mb-2">
                             <div>
-                              <h4 className="font-medium">{feedback.productName}</h4>
+                              <h4 className="font-medium">{feedbackItem.productName}</h4>
                               <p className="text-sm text-muted-foreground">by Anonymous User</p>
                             </div>
                             <Badge 
                               className={`${
-                                feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
-                                feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
+                                feedbackItem.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
+                                feedbackItem.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
                                 'bg-red-100 text-red-800 border-red-200'
                               }`}
                             >
-                              {feedback.rating}/5
+                              {feedbackItem.rating}/5
                             </Badge>
                           </div>
-                          <p className="text-sm">{feedback.feedback}</p>
+                          <p className="text-sm">{feedbackItem.feedback}</p>
                           <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
-                            <span>{feedback.date}</span>
-                            {feedback.videoUrl && (
+                            <span>{feedbackItem.date}</span>
+                            {feedbackItem.videoUrl && (
                               <Button variant="ghost" size="sm" className="h-auto p-1 flex items-center gap-1"
                                 onClick={() => {
                                   // In a real implementation, this would play the video
@@ -342,10 +376,10 @@ const BrandDashboard = () => {
                       </div>
                     ) : (
                       <div className="space-y-4">
-                        {filteredFeedback.map((feedback) => (
+                        {filteredFeedback.map((feedbackItem) => (
                           <FeedbackItem 
-                            key={feedback.id} 
-                            feedback={feedback}
+                            key={feedbackItem.id} 
+                            feedback={feedbackItem}
                             showUser={true}
                             showActions={true}
                           />
@@ -355,7 +389,7 @@ const BrandDashboard = () => {
                     
                     <div className="flex justify-between items-center pt-4">
                       <p className="text-sm text-muted-foreground">
-                        Showing {filteredFeedback.length} of {brandFeedback.length} feedback items
+                        Showing {filteredFeedback.length} of {feedback.length} feedback items
                       </p>
                       <Button 
                         onClick={handleDownloadReport} 

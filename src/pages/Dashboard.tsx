@@ -17,43 +17,54 @@ import { StatCard } from "@/components/dashboards/StatCard";
 import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
 import { FeedbackList } from "@/components/dashboards/FeedbackList";
 import UserFAQ from "@/components/UserFAQ";
+import { useRealTimeData } from "@/hooks/use-real-time-data";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const navigate = useNavigate();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { userId, userName, isAuthenticated, userRole } = useAuth();
+  const { userId, userName, isAuthenticated, userRole, isLoading: authLoading } = useAuth();
   
-  // State for user data
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [userFeedback, setUserFeedback] = useState<UserFeedback[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Use real-time data hook for profile
+  const { 
+    data: userProfile,
+    isLoading: profileLoading,
+    lastUpdated: profileUpdated
+  } = useRealTimeData<UserProfile>({
+    fetchFn: () => userId ? getUserProfile(userId) : null,
+    enabled: isAuthenticated && !!userId,
+    interval: 5000, // Poll every 5 seconds
+  });
 
-  // Fetch user data on component mount
-  useEffect(() => {
-    if (isAuthenticated && userId) {
-      const fetchData = () => {
-        const profile = getUserProfile(userId);
-        const feedback = getUserFeedback(userId);
-        
-        setUserProfile(profile);
-        setUserFeedback(feedback);
-        setIsLoading(false);
-      };
-      
-      fetchData();
-      
-      // Set up an interval to refresh data every 10 seconds for real-time updates
-      const intervalId = setInterval(fetchData, 10000);
-      
-      return () => clearInterval(intervalId);
-    }
-  }, [isAuthenticated, userId]);
+  // Use real-time data hook for feedback
+  const {
+    data: userFeedback,
+    isLoading: feedbackLoading,
+    lastUpdated: feedbackUpdated,
+    refresh: refreshFeedback
+  } = useRealTimeData<UserFeedback[]>({
+    fetchFn: () => userId ? getUserFeedback(userId) : [],
+    initialData: [],
+    enabled: isAuthenticated && !!userId,
+    interval: 5000, // Poll every 5 seconds
+  });
+  
+  const isLoading = authLoading || profileLoading || feedbackLoading;
+  const feedback = userFeedback || [];
 
   // Function to handle navigation to submit feedback
   const handleSubmitFeedback = () => {
     navigate("/submit-feedback");
+  };
+
+  // Function to refresh data manually
+  const handleRefreshData = () => {
+    refreshFeedback();
+    toast({
+      title: "Dashboard refreshed",
+      description: "Your data has been updated.",
+    });
   };
 
   // Calculate points to next level
@@ -62,21 +73,23 @@ const Dashboard = () => {
   // Calculate monthly submissions
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
-  const thisMonthSubmissions = userFeedback.filter(f => {
+  const thisMonthSubmissions = feedback.filter(f => {
     const feedbackDate = new Date(f.date);
     return feedbackDate.getMonth() === currentMonth && feedbackDate.getFullYear() === currentYear;
   }).length;
 
   // Calculate available balance
-  const availableBalance = userFeedback
+  const availableBalance = feedback
     .filter(f => f.status === 'approved' && f.reward)
     .reduce((sum, f) => sum + (f.reward || 0), 0) - 
     (userProfile?.totalEarnings || 0);
 
-  if (!isAuthenticated) {
-    navigate("/login");
-    return null;
-  }
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/login");
+    }
+  }, [authLoading, isAuthenticated, navigate]);
 
   if (isLoading) {
     return (
@@ -100,6 +113,11 @@ const Dashboard = () => {
             <div>
               <h1 className="text-3xl font-bold">User Dashboard</h1>
               <p className="text-foreground/70">Welcome back, {userName || userProfile?.name || "User"}!</p>
+              {lastUpdated && (
+                <p className="text-xs text-muted-foreground">
+                  Last updated: {profileUpdated?.toLocaleTimeString() || "Just now"}
+                </p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
               <Button 
@@ -108,6 +126,13 @@ const Dashboard = () => {
               >
                 <Plus className="h-4 w-4" />
                 Submit New Feedback
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleRefreshData}
+                className="w-full sm:w-auto"
+              >
+                Refresh Data
               </Button>
             </div>
           </div>
@@ -119,13 +144,14 @@ const Dashboard = () => {
               <TabsTrigger value="rewards">Rewards</TabsTrigger>
             </TabsList>
 
+            {/* Overview Tab */}
             <TabsContent value="overview" className="space-y-4">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard
                   icon={Video}
                   title="Total Submissions"
-                  value={userProfile?.totalSubmissions || 0}
+                  value={userProfile?.totalSubmissions || feedback.length || 0}
                 />
                 
                 <StatCard
@@ -137,7 +163,7 @@ const Dashboard = () => {
                 <StatCard
                   icon={Clock}
                   title="Pending Reviews"
-                  value={userProfile?.pendingReviews || 0}
+                  value={feedback.filter(f => f.status === 'pending').length}
                 />
               </div>
 
@@ -267,35 +293,35 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {userFeedback.length === 0 ? (
+                    {feedback.length === 0 ? (
                       <p className="text-center text-muted-foreground py-4">
                         No activity recorded yet. Submit your first feedback!
                       </p>
                     ) : (
-                      userFeedback.slice(0, 3).map((feedback) => (
-                        <div key={feedback.id} className="flex items-start space-x-3">
+                      feedback.slice(0, 3).map((feedbackItem) => (
+                        <div key={feedbackItem.id} className="flex items-start space-x-3">
                           <div className={`
-                            ${feedback.status === 'approved' ? 'bg-green-100' : 
-                              feedback.status === 'pending' ? 'bg-blue-100' : 'bg-red-100'} 
+                            ${feedbackItem.status === 'approved' ? 'bg-green-100' : 
+                              feedbackItem.status === 'pending' ? 'bg-blue-100' : 'bg-red-100'} 
                             p-2 rounded-full
                           `}>
                             <Video className={`h-4 w-4 
-                              ${feedback.status === 'approved' ? 'text-green-600' : 
-                                feedback.status === 'pending' ? 'text-blue-600' : 'text-red-600'}
+                              ${feedbackItem.status === 'approved' ? 'text-green-600' : 
+                                feedbackItem.status === 'pending' ? 'text-blue-600' : 'text-red-600'}
                             `} />
                           </div>
                           <div className="space-y-1">
                             <p className="text-sm font-medium">
-                              {feedback.status === 'approved' 
+                              {feedbackItem.status === 'approved' 
                                 ? 'Feedback Approved' 
-                                : feedback.status === 'pending' 
+                                : feedbackItem.status === 'pending' 
                                   ? 'Feedback Submitted'
                                   : 'Feedback Rejected'}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                              Your review for {feedback.productName} was {feedback.status}
+                              Your review for {feedbackItem.productName} was {feedbackItem.status}
                             </p>
-                            <p className="text-xs text-muted-foreground">{feedback.date}</p>
+                            <p className="text-xs text-muted-foreground">{feedbackItem.date}</p>
                           </div>
                         </div>
                       ))
@@ -309,7 +335,7 @@ const Dashboard = () => {
               <FeedbackList
                 title="My Submissions"
                 description="Track all your feedback submissions"
-                feedbackList={userFeedback}
+                feedbackList={feedback}
                 onNewSubmission={handleSubmitFeedback}
               />
               
