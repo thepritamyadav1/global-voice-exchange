@@ -2,6 +2,7 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   redirectPath?: string;
@@ -14,12 +15,21 @@ const ProtectedRoute = ({
   requireAuth,
   allowedRole,
 }: ProtectedRouteProps) => {
-  const { isAuthenticated, userRole, checkAuthStatus } = useAuth();
+  const { isAuthenticated, userRole, checkAuthStatus, isLoading } = useAuth();
 
   useEffect(() => {
     // Check auth status on component mount and when dependencies change
     checkAuthStatus();
   }, [checkAuthStatus]);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // If authentication is required but user is not authenticated
   if (requireAuth && !isAuthenticated) {

@@ -10,19 +10,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   getBrandProfile, 
   getBrandFeedback, 
-  getBrandProducts, 
-  getRatingDistribution,
+  getBrandProducts,
   UserFeedback,
   BrandProfile,
   BrandProduct
 } from "@/utils/database";
 import downloadReport from "@/utils/downloadReport";
+import { StatCard } from "@/components/dashboards/StatCard";
+import { RatingDistribution } from "@/components/dashboards/RatingDistribution";
+import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
+import BrandFAQ from "@/components/BrandFAQ";
 
 const BrandDashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -41,17 +44,26 @@ const BrandDashboard = () => {
   const [brandProducts, setBrandProducts] = useState<BrandProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch brand data on component mount
+  // Fetch brand data on component mount and at regular intervals
   useEffect(() => {
     if (isAuthenticated && userId && userRole === 'brand') {
-      const profile = getBrandProfile(userId);
-      const feedback = getBrandFeedback(userId);
-      const products = getBrandProducts(userId);
+      const fetchData = () => {
+        const profile = getBrandProfile(userId);
+        const feedback = getBrandFeedback(userId);
+        const products = getBrandProducts(userId);
+        
+        setBrandProfile(profile);
+        setBrandFeedback(feedback);
+        setBrandProducts(products);
+        setIsLoading(false);
+      };
       
-      setBrandProfile(profile);
-      setBrandFeedback(feedback);
-      setBrandProducts(products);
-      setIsLoading(false);
+      fetchData();
+      
+      // Set up an interval to refresh data every 10 seconds for real-time updates
+      const intervalId = setInterval(fetchData, 10000);
+      
+      return () => clearInterval(intervalId);
     }
   }, [isAuthenticated, userId, userRole]);
 
@@ -77,9 +89,6 @@ const BrandDashboard = () => {
     
     return matchesSearch && matchesAge && matchesGender && matchesLocation;
   });
-
-  // Rating distribution data
-  const ratingDistribution = getRatingDistribution(brandFeedback);
 
   // Rating percentage
   const totalRatings = brandFeedback.length;
@@ -130,7 +139,7 @@ const BrandDashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">Brand Dashboard</h1>
-              <p className="text-foreground/70">Welcome back, {userName || "Brand Partner"}!</p>
+              <p className="text-foreground/70">Welcome back, {brandProfile?.name || userName || "Brand Partner"}!</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
               <Button 
@@ -154,75 +163,27 @@ const BrandDashboard = () => {
             <TabsContent value="overview" className="space-y-4">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <Video className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Feedback</p>
-                      <h3 className="text-2xl font-bold">{brandFeedback.length}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={Video}
+                  title="Total Feedback"
+                  value={brandFeedback.length}
+                />
                 
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <Activity className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Average Rating</p>
-                      <h3 className="text-2xl font-bold">{averageRating.toFixed(1)}/5.0</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={Activity}
+                  title="Average Rating"
+                  value={`${averageRating.toFixed(1)}/5.0`}
+                />
                 
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <BarChart3 className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Positive Feedback</p>
-                      <h3 className="text-2xl font-bold">{positivePercentage}%</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={BarChart3}
+                  title="Positive Feedback"
+                  value={`${positivePercentage}%`}
+                />
               </div>
 
               {/* Rating Distribution Card */}
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>Rating Distribution</CardTitle>
-                  <CardDescription>Breakdown of feedback ratings</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[5, 4, 3, 2, 1].map((rating) => (
-                      <div key={rating} className="space-y-1">
-                        <div className="flex items-center justify-between text-sm">
-                          <div className="flex items-center">
-                            <span className="font-medium mr-2">{rating}</span>
-                            {Array.from({ length: rating }).map((_, i) => (
-                              <svg key={i} className="h-4 w-4 fill-amber-400" viewBox="0 0 20 20">
-                                <path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z" />
-                              </svg>
-                            ))}
-                          </div>
-                          <span>{ratingDistribution[rating as keyof typeof ratingDistribution]} reviews</span>
-                        </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div 
-                            className={`h-2 rounded-full ${rating >= 4 ? 'bg-green-500' : rating === 3 ? 'bg-amber-500' : 'bg-red-500'}`}
-                            style={{ width: `${totalRatings ? (ratingDistribution[rating as keyof typeof ratingDistribution] / totalRatings) * 100 : 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+              <RatingDistribution feedbackList={brandFeedback} />
 
               {/* Recent Feedback */}
               <Card className="shadow-sm">
@@ -262,8 +223,22 @@ const BrandDashboard = () => {
                             </Badge>
                           </div>
                           <p className="text-sm">{feedback.feedback}</p>
-                          <div className="flex justify-between mt-2 text-xs text-muted-foreground">
+                          <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
                             <span>{feedback.date}</span>
+                            {feedback.videoUrl && (
+                              <Button variant="ghost" size="sm" className="h-auto p-1 flex items-center gap-1"
+                                onClick={() => {
+                                  // In a real implementation, this would play the video
+                                  toast({
+                                    title: "Video Available",
+                                    description: "Click 'View All' and find this feedback to watch the video review.",
+                                  });
+                                }}
+                              >
+                                <Video className="h-3 w-3" />
+                                <span className="text-xs">Video</span>
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -368,47 +343,12 @@ const BrandDashboard = () => {
                     ) : (
                       <div className="space-y-4">
                         {filteredFeedback.map((feedback) => (
-                          <div key={feedback.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-3 gap-2">
-                              <div>
-                                <h4 className="font-medium">{feedback.productName}</h4>
-                                <div className="flex items-center text-sm text-muted-foreground">
-                                  <span>Anonymous User</span>
-                                  <span className="mx-2">•</span>
-                                  <span>{feedback.date}</span>
-                                </div>
-                              </div>
-                              <Badge 
-                                className={`${
-                                  feedback.rating >= 4 ? 'bg-green-100 text-green-800 border-green-200' : 
-                                  feedback.rating === 3 ? 'bg-amber-100 text-amber-800 border-amber-200' : 
-                                  'bg-red-100 text-red-800 border-red-200'
-                                } w-fit`}
-                              >
-                                {feedback.rating}/5
-                              </Badge>
-                            </div>
-                            <p className="mb-3">{feedback.feedback}</p>
-                            {feedback.videoUrl && (
-                              <div className="mb-3">
-                                <Button variant="outline" size="sm" className="flex items-center gap-2">
-                                  <Video className="h-4 w-4" /> 
-                                  Watch Video Review
-                                </Button>
-                              </div>
-                            )}
-                            <div className="flex flex-wrap gap-2">
-                              <Badge variant="outline" className="bg-blue-50 text-blue-800 border-blue-200">
-                                Age: Not specified
-                              </Badge>
-                              <Badge variant="outline" className="bg-purple-50 text-purple-800 border-purple-200">
-                                Not specified
-                              </Badge>
-                              <Badge variant="outline" className="bg-yellow-50 text-yellow-800 border-yellow-200">
-                                Not specified
-                              </Badge>
-                            </div>
-                          </div>
+                          <FeedbackItem 
+                            key={feedback.id} 
+                            feedback={feedback}
+                            showUser={true}
+                            showActions={true}
+                          />
                         ))}
                       </div>
                     )}
@@ -461,6 +401,10 @@ const BrandDashboard = () => {
               </Card>
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-12">
+            <BrandFAQ />
+          </div>
         </div>
       </div>
 

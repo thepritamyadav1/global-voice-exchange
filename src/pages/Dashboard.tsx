@@ -6,13 +6,17 @@ import Footer from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Video, BarChart, DollarSign, Clock, User, Star, Plus } from "lucide-react";
+import { Video, BarChart, DollarSign, Clock, Star, Plus } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { getUserProfile, getUserFeedback, UserProfile, UserFeedback } from "@/utils/database";
+import { StatCard } from "@/components/dashboards/StatCard";
+import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
+import { FeedbackList } from "@/components/dashboards/FeedbackList";
+import UserFAQ from "@/components/UserFAQ";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -29,12 +33,21 @@ const Dashboard = () => {
   // Fetch user data on component mount
   useEffect(() => {
     if (isAuthenticated && userId) {
-      const profile = getUserProfile(userId);
-      const feedback = getUserFeedback(userId);
+      const fetchData = () => {
+        const profile = getUserProfile(userId);
+        const feedback = getUserFeedback(userId);
+        
+        setUserProfile(profile);
+        setUserFeedback(feedback);
+        setIsLoading(false);
+      };
       
-      setUserProfile(profile);
-      setUserFeedback(feedback);
-      setIsLoading(false);
+      fetchData();
+      
+      // Set up an interval to refresh data every 10 seconds for real-time updates
+      const intervalId = setInterval(fetchData, 10000);
+      
+      return () => clearInterval(intervalId);
     }
   }, [isAuthenticated, userId]);
 
@@ -45,6 +58,20 @@ const Dashboard = () => {
 
   // Calculate points to next level
   const pointsToNextLevel = userProfile ? userProfile.nextLevelPoints - userProfile.points : 0;
+
+  // Calculate monthly submissions
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const thisMonthSubmissions = userFeedback.filter(f => {
+    const feedbackDate = new Date(f.date);
+    return feedbackDate.getMonth() === currentMonth && feedbackDate.getFullYear() === currentYear;
+  }).length;
+
+  // Calculate available balance
+  const availableBalance = userFeedback
+    .filter(f => f.status === 'approved' && f.reward)
+    .reduce((sum, f) => sum + (f.reward || 0), 0) - 
+    (userProfile?.totalEarnings || 0);
 
   if (!isAuthenticated) {
     navigate("/login");
@@ -72,7 +99,7 @@ const Dashboard = () => {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
             <div>
               <h1 className="text-3xl font-bold">User Dashboard</h1>
-              <p className="text-foreground/70">Welcome back, {userName || "User"}!</p>
+              <p className="text-foreground/70">Welcome back, {userName || userProfile?.name || "User"}!</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3 mt-4 md:mt-0 w-full sm:w-auto">
               <Button 
@@ -95,41 +122,23 @@ const Dashboard = () => {
             <TabsContent value="overview" className="space-y-4">
               {/* Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <Video className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Submissions</p>
-                      <h3 className="text-2xl font-bold">{userProfile?.totalSubmissions || 0}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={Video}
+                  title="Total Submissions"
+                  value={userProfile?.totalSubmissions || 0}
+                />
                 
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <DollarSign className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Earnings</p>
-                      <h3 className="text-2xl font-bold">₹{userProfile?.totalEarnings || 0}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={DollarSign}
+                  title="Total Earnings"
+                  value={`₹${userProfile?.totalEarnings || 0}`}
+                />
                 
-                <Card className="shadow-sm hover:shadow-md transition-shadow">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <Clock className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending Reviews</p>
-                      <h3 className="text-2xl font-bold">{userProfile?.pendingReviews || 0}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={Clock}
+                  title="Pending Reviews"
+                  value={userProfile?.pendingReviews || 0}
+                />
               </div>
 
               {/* User Level Card */}
@@ -143,27 +152,59 @@ const Dashboard = () => {
                     <div className="space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div className="flex items-center">
-                          <div className="bg-yellow-100 p-2 rounded-full mr-3">
-                            <Star className="h-5 w-5 text-yellow-600" />
+                          <div className={`${
+                            userProfile.level === 'Bronze Reviewer' ? 'bg-amber-100' :
+                            userProfile.level === 'Silver Reviewer' ? 'bg-gray-200' :
+                            userProfile.level === 'Gold Reviewer' ? 'bg-yellow-100' :
+                            'bg-purple-100'
+                          } p-2 rounded-full mr-3`}>
+                            <Star className={`h-5 w-5 ${
+                              userProfile.level === 'Bronze Reviewer' ? 'text-amber-600' :
+                              userProfile.level === 'Silver Reviewer' ? 'text-gray-600' :
+                              userProfile.level === 'Gold Reviewer' ? 'text-yellow-600' :
+                              'text-purple-600'
+                            }`} />
                           </div>
                           <div>
                             <p className="font-medium">{userProfile.level}</p>
                             <p className="text-sm text-muted-foreground">{userProfile.points} points</p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-200 text-yellow-800 w-fit">
-                          Gold Tier
+                        <Badge variant="outline" className={`${
+                          userProfile.level === 'Bronze Reviewer' ? 'bg-gradient-to-r from-amber-50 to-amber-100 border-amber-200 text-amber-800' :
+                          userProfile.level === 'Silver Reviewer' ? 'bg-gradient-to-r from-gray-100 to-gray-200 border-gray-300 text-gray-800' :
+                          userProfile.level === 'Gold Reviewer' ? 'bg-gradient-to-r from-yellow-100 to-amber-100 border-yellow-200 text-yellow-800' :
+                          'bg-gradient-to-r from-purple-100 to-purple-200 border-purple-300 text-purple-800'
+                        } w-fit`}>
+                          {userProfile.level.split(' ')[0]} Tier
                         </Badge>
                       </div>
                       
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">Next Level: Platinum Reviewer</span>
-                          <span className="text-sm text-muted-foreground">{userProfile.points} of {userProfile.nextLevelPoints} points</span>
+                          <span className="text-sm font-medium">
+                            Next Level: {
+                              userProfile.level === 'Bronze Reviewer' ? 'Silver Reviewer' :
+                              userProfile.level === 'Silver Reviewer' ? 'Gold Reviewer' :
+                              userProfile.level === 'Gold Reviewer' ? 'Platinum Reviewer' :
+                              'Max Level Reached'
+                            }
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {userProfile.points} of {userProfile.nextLevelPoints} points
+                          </span>
                         </div>
                         <Progress value={(userProfile.points / userProfile.nextLevelPoints) * 100} className="h-2" />
                         <p className="text-xs text-muted-foreground">
-                          Submit {Math.ceil(pointsToNextLevel / 150)} more reviews to reach Platinum level and unlock premium rewards!
+                          {userProfile.level !== 'Platinum Reviewer' ? (
+                            <>Submit {Math.ceil(pointsToNextLevel / 150)} more reviews to reach {
+                              userProfile.level === 'Bronze Reviewer' ? 'Silver' :
+                              userProfile.level === 'Silver Reviewer' ? 'Gold' :
+                              'Platinum'
+                            } level and unlock premium rewards!</>
+                          ) : (
+                            <>You've reached the highest reviewer level. Enjoy premium rewards!</>
+                          )}
                         </p>
                       </div>
                     </div>
@@ -183,22 +224,11 @@ const Dashboard = () => {
                       <div className="flex justify-between items-center">
                         <span className="text-sm font-medium">Monthly Goal</span>
                         <span className="text-sm text-muted-foreground">
-                          {userFeedback.filter(f => {
-                            const thisMonth = new Date().getMonth();
-                            const feedbackMonth = new Date(f.date).getMonth();
-                            return thisMonth === feedbackMonth;
-                          }).length} of 10 submissions
+                          {thisMonthSubmissions} of 10 submissions
                         </span>
                       </div>
                       <Progress 
-                        value={Math.min(
-                          (userFeedback.filter(f => {
-                            const thisMonth = new Date().getMonth();
-                            const feedbackMonth = new Date(f.date).getMonth();
-                            return thisMonth === feedbackMonth;
-                          }).length / 10) * 100, 
-                          100
-                        )} 
+                        value={Math.min((thisMonthSubmissions / 10) * 100, 100)} 
                         className="h-2" 
                       />
                     </div>
@@ -208,11 +238,11 @@ const Dashboard = () => {
                         <DollarSign className="h-4 w-4 text-primary" />
                       </div>
                       <p className="text-sm">
-                        Complete {Math.max(0, 10 - userFeedback.filter(f => {
-                          const thisMonth = new Date().getMonth();
-                          const feedbackMonth = new Date(f.date).getMonth();
-                          return thisMonth === feedbackMonth;
-                        }).length)} more submissions to reach your goal and unlock a bonus reward!
+                        {thisMonthSubmissions >= 10 ? (
+                          "You've reached your monthly goal! A bonus reward has been added."
+                        ) : (
+                          `Complete ${Math.max(0, 10 - thisMonthSubmissions)} more submissions to reach your goal and unlock a bonus reward!`
+                        )}
                       </p>
                     </div>
                   </div>
@@ -226,102 +256,62 @@ const Dashboard = () => {
                     <CardTitle>Recent Activity</CardTitle>
                     <CardDescription>Your most recent platform interactions</CardDescription>
                   </div>
-                  <Button variant="ghost" size="sm" className="text-xs">View All</Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="text-xs"
+                    onClick={() => setActiveTab("submissions")}
+                  >
+                    View All
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {userFeedback.slice(0, 3).map((feedback, index) => (
-                      <div key={feedback.id} className="flex items-start space-x-3">
-                        <div className={`bg-${feedback.status === 'approved' ? 'green' : feedback.status === 'pending' ? 'blue' : 'red'}-100 p-2 rounded-full`}>
-                          <Video className={`h-4 w-4 text-${feedback.status === 'approved' ? 'green' : feedback.status === 'pending' ? 'blue' : 'red'}-600`} />
+                    {userFeedback.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-4">
+                        No activity recorded yet. Submit your first feedback!
+                      </p>
+                    ) : (
+                      userFeedback.slice(0, 3).map((feedback) => (
+                        <div key={feedback.id} className="flex items-start space-x-3">
+                          <div className={`
+                            ${feedback.status === 'approved' ? 'bg-green-100' : 
+                              feedback.status === 'pending' ? 'bg-blue-100' : 'bg-red-100'} 
+                            p-2 rounded-full
+                          `}>
+                            <Video className={`h-4 w-4 
+                              ${feedback.status === 'approved' ? 'text-green-600' : 
+                                feedback.status === 'pending' ? 'text-blue-600' : 'text-red-600'}
+                            `} />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-sm font-medium">
+                              {feedback.status === 'approved' 
+                                ? 'Feedback Approved' 
+                                : feedback.status === 'pending' 
+                                  ? 'Feedback Submitted'
+                                  : 'Feedback Rejected'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Your review for {feedback.productName} was {feedback.status}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{feedback.date}</p>
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium">
-                            {feedback.status === 'approved' 
-                              ? 'Feedback Approved' 
-                              : feedback.status === 'pending' 
-                                ? 'Feedback Submitted'
-                                : 'Feedback Rejected'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Your review for {feedback.productName} was {feedback.status}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{feedback.date}</p>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
 
             <TabsContent value="submissions" className="space-y-4">
-              <Card className="shadow-sm">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>My Submissions</CardTitle>
-                    <CardDescription>Track all your feedback submissions</CardDescription>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={handleSubmitFeedback} className="hidden sm:flex items-center gap-2">
-                    <Plus className="h-4 w-4" /> New Submission
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {userFeedback.length === 0 ? (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">You haven't submitted any feedback yet.</p>
-                      <Button onClick={handleSubmitFeedback} className="mt-4">
-                        Submit Your First Feedback
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {userFeedback.map((feedback) => (
-                        <div 
-                          key={feedback.id} 
-                          className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 border rounded-lg hover:bg-muted/30 transition-colors"
-                        >
-                          <div className="flex items-center space-x-4 mb-3 sm:mb-0">
-                            <div className="bg-background p-2 border rounded">
-                              <Video className="h-6 w-6 text-primary" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{feedback.productName}</p>
-                              <p className="text-sm text-muted-foreground">{feedback.category}</p>
-                            </div>
-                          </div>
-                          <div className="flex flex-col items-start sm:items-end w-full sm:w-auto">
-                            <Badge 
-                              className={
-                                feedback.status === 'approved' 
-                                  ? "bg-green-100 text-green-800 border-green-200"
-                                  : feedback.status === 'pending'
-                                    ? "bg-yellow-50 text-yellow-800 border-yellow-200"
-                                    : "bg-red-100 text-red-800 border-red-200"
-                              }
-                            >
-                              {feedback.status.charAt(0).toUpperCase() + feedback.status.slice(1)}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground mt-1">
-                              {feedback.status === 'approved' 
-                                ? `₹${feedback.reward} earned` 
-                                : feedback.status === 'pending' 
-                                  ? 'Under review'
-                                  : 'Rejected'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {userFeedback.length > 0 && (
-                    <div className="mt-6 text-center">
-                      <Button variant="outline" className="w-full sm:w-auto">View All Submissions</Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <FeedbackList
+                title="My Submissions"
+                description="Track all your feedback submissions"
+                feedbackList={userFeedback}
+                onNewSubmission={handleSubmitFeedback}
+              />
               
               <Button 
                 onClick={handleSubmitFeedback}
@@ -334,46 +324,23 @@ const Dashboard = () => {
 
             <TabsContent value="rewards" className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                <Card className="shadow-sm">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <DollarSign className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Available Balance</p>
-                      <h3 className="text-2xl font-bold">₹{
-                        userFeedback
-                          .filter(f => f.status === 'approved' && f.reward)
-                          .reduce((sum, f) => sum + (f.reward || 0), 0) - 
-                        (userProfile?.totalEarnings || 0)
-                      }</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={DollarSign}
+                  title="Available Balance"
+                  value={`₹${availableBalance}`}
+                />
                 
-                <Card className="shadow-sm">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <BarChart className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Lifetime Earnings</p>
-                      <h3 className="text-2xl font-bold">₹{userProfile?.totalEarnings || 0}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={BarChart}
+                  title="Lifetime Earnings"
+                  value={`₹${userProfile?.totalEarnings || 0}`}
+                />
                 
-                <Card className="shadow-sm">
-                  <CardContent className="p-6 flex items-center space-x-4">
-                    <div className="bg-primary/10 p-3 rounded-full">
-                      <Star className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Reward Tier</p>
-                      <h3 className="text-xl font-bold">{userProfile?.level || 'Bronze Reviewer'}</h3>
-                    </div>
-                  </CardContent>
-                </Card>
+                <StatCard
+                  icon={Star}
+                  title="Reward Tier"
+                  value={userProfile?.level || 'Bronze Reviewer'}
+                />
               </div>
               
               <Card className="shadow-sm">
@@ -418,17 +385,26 @@ const Dashboard = () => {
                   </div>
                   
                   <div className="mt-6 text-center">
-                    <Button onClick={() => {
+                    <Button disabled={availableBalance < 500} onClick={() => {
                       toast({
                         title: "Payout Requested",
                         description: "Your payout request has been submitted and is being processed.",
                       });
-                    }}>Request Payout</Button>
+                    }}>
+                      {availableBalance < 500 
+                        ? `Minimum ₹500 required (₹${500 - availableBalance} more needed)` 
+                        : "Request Payout"
+                      }
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-12">
+            <UserFAQ />
+          </div>
         </div>
       </div>
 
