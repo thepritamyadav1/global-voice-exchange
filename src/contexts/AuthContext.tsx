@@ -7,6 +7,7 @@ interface AuthContextType {
   userRole: "user" | "brand" | null;
   userName: string | null;
   userId: string | null;
+  isLoading: boolean;
   login: (email: string, password: string, role: "user" | "brand") => Promise<boolean>;
   register: (name: string, email: string, password: string, role: "user" | "brand") => Promise<boolean>;
   logout: () => void;
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
   userRole: null,
   userName: null,
   userId: null,
+  isLoading: false,
   login: async () => false,
   register: async () => false,
   logout: () => {},
@@ -29,9 +31,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRole, setUserRole] = useState<"user" | "brand" | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Check if the user is already authenticated
   const checkAuthStatus = () => {
+    setIsLoading(true);
     const storedAuth = localStorage.getItem("auth");
     if (storedAuth) {
       const authData = JSON.parse(storedAuth);
@@ -45,6 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserName(null);
       setUserId(null);
     }
+    setIsLoading(false);
   };
 
   // Check auth status on component mount
@@ -56,6 +61,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string, role: "user" | "brand"): Promise<boolean> => {
     // In a real app, this would call an API
     try {
+      setIsLoading(true);
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -85,9 +91,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserName(profile.name);
       setUserId(userId);
       
+      setIsLoading(false);
       return true;
     } catch (error) {
       console.error("Login error:", error);
+      setIsLoading(false);
       return false;
     }
   };
@@ -96,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (name: string, email: string, password: string, role: "user" | "brand"): Promise<boolean> => {
     // In a real app, this would call an API
     try {
+      setIsLoading(true);
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -118,20 +127,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUserName(name);
       setUserId(userId);
       
+      setIsLoading(false);
       return true;
     } catch (error) {
       console.error("Register error:", error);
+      setIsLoading(false);
       return false;
     }
   };
 
   // Logout function
   const logout = () => {
+    setIsLoading(true);
     localStorage.removeItem("auth");
     setIsAuthenticated(false);
     setUserRole(null);
     setUserName(null);
     setUserId(null);
+    setIsLoading(false);
   };
 
   return (
@@ -141,6 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         userRole,
         userName,
         userId,
+        isLoading,
         login,
         register,
         logout,
