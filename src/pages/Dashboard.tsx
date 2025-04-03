@@ -115,7 +115,7 @@ const Dashboard = () => {
               <p className="text-foreground/70">Welcome back, {userName || userProfile?.name || "User"}!</p>
               {profileUpdated && (
                 <p className="text-xs text-muted-foreground">
-                  Last updated: {profileUpdated.toLocaleTimeString() || "Just now"}
+                  Last updated: {profileUpdated.toLocaleTimeString()}
                 </p>
               )}
             </div>
