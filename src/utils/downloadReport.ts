@@ -26,10 +26,10 @@ const downloadReport = (feedbackData: ReportItem[], brandName: string = "GlobalV
     const row = [
       item.product,
       item.user || "Anonymous",
-      item.age || "Not specified",
+      (item.age || "Not specified").toString(),
       item.gender || "Not specified",
       item.location || "Not specified",
-      item.rating,
+      item.rating.toString(), // Convert number to string
       item.date,
       // Escape quotes in the feedback text
       `"${item.feedback?.replace(/"/g, '""') || "No feedback provided"}"`
@@ -37,8 +37,8 @@ const downloadReport = (feedbackData: ReportItem[], brandName: string = "GlobalV
     csvRows.push(row);
   });
   
-  // Convert rows to CSV format
-  const csvString = csvRows.map(row => row.join(',')).join('\n');
+  // Convert rows to CSV format - ensure all values are strings
+  const csvString = csvRows.map(row => row.map(value => String(value)).join(',')).join('\n');
   
   // Create a Blob with the CSV content
   const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
