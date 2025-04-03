@@ -18,6 +18,7 @@ import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
 import { FeedbackList } from "@/components/dashboards/FeedbackList";
 import UserFAQ from "@/components/UserFAQ";
 import { useRealTimeData } from "@/hooks/use-real-time-data";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -65,6 +66,12 @@ const Dashboard = () => {
       title: "Dashboard refreshed",
       description: "Your data has been updated.",
     });
+  };
+
+  // Function to format date safely
+  const formatLastUpdated = (date: Date | null) => {
+    if (!date) return "Never";
+    return date.toLocaleTimeString();
   };
 
   // Calculate points to next level
@@ -115,7 +122,7 @@ const Dashboard = () => {
               <p className="text-foreground/70">Welcome back, {userName || userProfile?.name || "User"}!</p>
               {profileUpdated && (
                 <p className="text-xs text-muted-foreground">
-                  Last updated: {profileUpdated.toLocaleTimeString()}
+                  Last updated: {formatLastUpdated(profileUpdated)}
                 </p>
               )}
             </div>

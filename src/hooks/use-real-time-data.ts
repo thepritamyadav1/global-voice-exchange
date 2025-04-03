@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface UseRealTimeDataOptions {
   fetchFn: () => any;
@@ -22,6 +22,7 @@ export function useRealTimeData<T>({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const previousDataRef = useRef<T | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!enabled) return;
@@ -29,9 +30,16 @@ export function useRealTimeData<T>({
     setIsLoading(true);
     try {
       const result = await fetchFn();
-      setData(result);
-      setLastUpdated(new Date());
-      if (onSuccess) onSuccess(result);
+
+      // Only update state if data actually changed
+      const hasChanged = JSON.stringify(result) !== JSON.stringify(previousDataRef.current);
+      
+      if (hasChanged) {
+        setData(result);
+        previousDataRef.current = result;
+        setLastUpdated(new Date());
+        if (onSuccess) onSuccess(result);
+      }
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
       if (onError) onError(err);
