@@ -81,7 +81,7 @@ const BrandDashboard = () => {
   const feedback = brandFeedback || [];
   const products = brandProducts || [];
 
-  // Mock demographic data for visualization
+  // Demographic data for visualization (this would come from your API in a real application)
   const ageData = [
     { name: "18-24", value: 25, color: "#8884d8" },
     { name: "25-34", value: 40, color: "#83a6ed" },
@@ -165,6 +165,7 @@ const BrandDashboard = () => {
     });
   };
 
+  // Show loading dashboard while loading
   if (isLoading) {
     return (
       <div className="flex flex-col min-h-screen">
