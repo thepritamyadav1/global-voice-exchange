@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { BarChart3, Activity, Search, Video, Download, Filter, SlidersHorizontal, RefreshCw, PieChart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -25,6 +25,8 @@ import downloadReport from "@/utils/downloadReport";
 import { StatCard } from "@/components/dashboards/StatCard";
 import { RatingDistribution } from "@/components/dashboards/RatingDistribution";
 import { FeedbackItem } from "@/components/dashboards/FeedbackItem";
+import { DemographicInsights } from "@/components/dashboards/DemographicInsights";
+import { LoadingDashboard } from "@/components/dashboards/LoadingDashboard";
 import BrandFAQ from "@/components/BrandFAQ";
 import { useRealTimeData } from "@/hooks/use-real-time-data";
 
@@ -78,6 +80,28 @@ const BrandDashboard = () => {
   const isLoading = authLoading || profileLoading || feedbackLoading || productsLoading;
   const feedback = brandFeedback || [];
   const products = brandProducts || [];
+
+  // Mock demographic data for visualization
+  const ageData = [
+    { name: "18-24", value: 25, color: "#8884d8" },
+    { name: "25-34", value: 40, color: "#83a6ed" },
+    { name: "35-44", value: 20, color: "#8dd1e1" },
+    { name: "45+", value: 15, color: "#82ca9d" },
+  ];
+  
+  const genderData = [
+    { name: "Male", value: 55, color: "#0088FE" },
+    { name: "Female", value: 42, color: "#FF8042" },
+    { name: "Other", value: 3, color: "#00C49F" },
+  ];
+  
+  const locationData = [
+    { name: "Mumbai", value: 32, color: "#FFBB28" },
+    { name: "Delhi", value: 28, color: "#FF8042" },
+    { name: "Bangalore", value: 22, color: "#0088FE" },
+    { name: "Chennai", value: 10, color: "#00C49F" },
+    { name: "Others", value: 8, color: "#8884d8" },
+  ];
 
   // Function to refresh data manually
   const handleRefresh = () => {
@@ -145,8 +169,10 @@ const BrandDashboard = () => {
     return (
       <div className="flex flex-col min-h-screen">
         <Navbar />
-        <div className="flex-grow flex items-center justify-center">
-          <p>Loading your dashboard...</p>
+        <div className="flex-grow py-8 bg-muted/30">
+          <div className="container mx-auto px-4">
+            <LoadingDashboard />
+          </div>
         </div>
         <Footer />
       </div>
@@ -407,32 +433,64 @@ const BrandDashboard = () => {
             </TabsContent>
 
             <TabsContent value="analytics" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Analytics Dashboard</CardTitle>
-                  <CardDescription>
-                    Advanced analytics and insights coming soon
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col items-center justify-center py-12">
-                  <SlidersHorizontal className="h-16 w-16 text-primary/30 mb-4" />
-                  <h3 className="text-xl font-bold mb-2">Advanced Analytics</h3>
-                  <p className="text-center text-muted-foreground max-w-md mb-6">
-                    Our enhanced analytics dashboard is being built. 
-                    Soon you'll have access to detailed insights, trends, and comparative analysis.
-                  </p>
-                  <Button 
-                    onClick={() => {
-                      toast({
-                        title: "Request submitted",
-                        description: "We'll notify you when advanced analytics are available.",
-                      });
-                    }}
-                  >
-                    Request Early Access
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <DemographicInsights 
+                  title="Age Distribution" 
+                  description="Breakdown of feedback by age groups"
+                  data={ageData}
+                />
+                
+                <DemographicInsights 
+                  title="Gender Distribution" 
+                  description="Breakdown of feedback by gender"
+                  data={genderData}
+                />
+                
+                <DemographicInsights 
+                  title="Location Insights" 
+                  description="Geographic distribution of feedback"
+                  data={locationData}
+                />
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Product Performance</CardTitle>
+                    <CardDescription>Compare feedback across products</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-4">
+                    <div className="space-y-4">
+                      {products.length === 0 ? (
+                        <div className="text-center py-8">
+                          <p className="text-muted-foreground">No product data available</p>
+                        </div>
+                      ) : (
+                        products.map(product => (
+                          <div key={product.id} className="flex justify-between items-center p-4 border rounded-lg">
+                            <div>
+                              <h4 className="font-medium">{product.name}</h4>
+                              <p className="text-sm text-muted-foreground">{product.category}</p>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <p className="text-sm font-medium">{product.totalFeedback} reviews</p>
+                                <div className="flex items-center justify-end gap-1">
+                                  <span className={`text-sm ${
+                                    product.averageRating >= 4 ? 'text-green-600' : 
+                                    product.averageRating >= 3 ? 'text-amber-600' : 'text-red-600'
+                                  }`}>
+                                    {product.averageRating.toFixed(1)}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">/5</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
           </Tabs>
           
