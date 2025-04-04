@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
@@ -16,6 +15,16 @@ import { DashboardHeader } from "@/components/dashboards/DashboardHeader";
 import { OverviewTab } from "@/components/dashboards/OverviewTab";
 import { RewardsTab } from "@/components/dashboards/RewardsTab";
 import { LoadingDashboard } from "@/components/dashboards/LoadingDashboard";
+import { DemographicInsights } from "@/components/dashboards/DemographicInsights";
+import { AnalyticsCard } from "@/components/dashboards/AnalyticsCard";
+import { CategoryBreakdown } from "@/components/dashboards/CategoryBreakdown";
+import { RecentActivity } from "@/components/dashboards/RecentActivity";
+import { VerificationStatusCard } from "@/components/dashboards/VerificationStatusCard";
+import { 
+  generateDemographicData, 
+  generateTimeSeriesData,
+  generateSubmissionStats
+} from "@/utils/mockDataGenerators";
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState("overview");
@@ -47,6 +56,11 @@ const Dashboard = () => {
     interval: 5000, // Poll every 5 seconds
   });
   
+  // Additional states for verification
+  const [verificationStatus, setVerificationStatus] = useState<"verified" | "pending" | "unverified">("unverified");
+  const [completedVerificationSteps, setCompletedVerificationSteps] = useState(0);
+  const totalVerificationSteps = 4;
+  
   const isLoading = authLoading || profileLoading || feedbackLoading;
   const feedback = userFeedback || [];
 
@@ -67,6 +81,33 @@ const Dashboard = () => {
       title: "Payout Requested",
       description: "Your payout request has been submitted and is being processed.",
     });
+  };
+
+  // Mock handlers for verification
+  const handleStartVerification = () => {
+    toast({
+      title: "Verification Started",
+      description: "Follow the steps to complete your account verification.",
+    });
+    // In a real implementation, navigate to verification flow
+    setVerificationStatus("pending");
+    setCompletedVerificationSteps(1);
+  };
+
+  const handleContinueVerification = () => {
+    if (completedVerificationSteps < totalVerificationSteps) {
+      setCompletedVerificationSteps(prev => Math.min(prev + 1, totalVerificationSteps));
+      toast({
+        title: "Verification Step Completed",
+        description: `Step ${completedVerificationSteps + 1} of ${totalVerificationSteps} completed.`,
+      });
+    } else {
+      setVerificationStatus("verified");
+      toast({
+        title: "Verification Complete",
+        description: "Your account is now fully verified!",
+      });
+    }
   };
 
   // Redirect if not authenticated
@@ -90,6 +131,11 @@ const Dashboard = () => {
     );
   }
 
+  // Generate mock data for the analytics
+  const demographicData = generateDemographicData();
+  const submissionTrendData = generateTimeSeriesData();
+  const categoryStats = generateSubmissionStats();
+  
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
@@ -101,6 +147,9 @@ const Dashboard = () => {
             profileName={userProfile?.name}
             profileUpdated={profileUpdated}
             onRefresh={handleRefreshData}
+            verificationStatus={verificationStatus}
+            userLevel={userProfile?.level}
+            userPoints={userProfile?.points}
           />
 
           <Tabs defaultValue="overview" className="space-y-4" onValueChange={setActiveTab}>
@@ -111,12 +160,53 @@ const Dashboard = () => {
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview">
+            <TabsContent value="overview" className="space-y-6">
               <OverviewTab 
                 userProfile={userProfile}
                 feedback={feedback}
                 onSubmitFeedback={handleSubmitFeedback}
                 onViewAll={() => setActiveTab("submissions")}
+              />
+              
+              {/* New Analytics Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2">
+                  <AnalyticsCard 
+                    title="Submission Trend" 
+                    description="Your feedback submissions over time"
+                    data={submissionTrendData}
+                    color="#8884d8"
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <VerificationStatusCard 
+                    status={verificationStatus}
+                    completedSteps={completedVerificationSteps}
+                    totalSteps={totalVerificationSteps}
+                    onStartVerification={handleStartVerification}
+                    onContinueVerification={handleContinueVerification}
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <CategoryBreakdown 
+                  title="Category Breakdown" 
+                  description="Your feedback by product category"
+                  data={categoryStats}
+                />
+                <DemographicInsights 
+                  title="Age Demographics" 
+                  description="Insights from your feedback audience"
+                  data={demographicData}
+                />
+              </div>
+              
+              <RecentActivity 
+                title="Recent Activity" 
+                description="Your latest feedback submissions and their status"
+                activities={feedback}
+                limit={3}
               />
             </TabsContent>
 
