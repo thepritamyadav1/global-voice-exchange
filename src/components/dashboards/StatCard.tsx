@@ -22,17 +22,18 @@ export const StatCard = ({
   className,
 }: StatCardProps) => {
   return (
-    <Card className={`shadow-sm hover:shadow-md transition-shadow ${className || ""}`}>
+    <Card className={`shadow-sm hover:shadow-md transition-all duration-300 hover:translate-y-[-5px] ${className || ""}`}>
       <CardContent className="p-6 flex items-center space-x-4">
-        <div className="bg-primary/10 p-3 rounded-full">
+        <div className="bg-primary/10 p-3 rounded-full flex items-center justify-center transform transition-transform duration-500 hover:rotate-12 hover:scale-110">
           <Icon className="h-6 w-6 text-primary" />
         </div>
-        <div>
-          <p className="text-sm text-muted-foreground">{title}</p>
-          <h3 className="text-2xl font-bold">{value}</h3>
+        <div className="transition-all duration-300">
+          <p className="text-sm text-muted-foreground mb-1">{title}</p>
+          <h3 className="text-2xl font-bold gradient-number">{value}</h3>
           {trend && (
-            <span className={`text-xs ${trend.isPositive ? "text-green-600" : "text-red-600"}`}>
-              {trend.isPositive ? "+" : "-"}{trend.value}% from last month
+            <span className={`text-xs font-medium flex items-center mt-1 ${trend.isPositive ? "text-success" : "text-destructive"}`}>
+              {trend.isPositive ? "+" : "-"}{trend.value}% 
+              <span className="ml-1 opacity-80">from last month</span>
             </span>
           )}
         </div>

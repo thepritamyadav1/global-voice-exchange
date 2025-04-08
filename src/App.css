@@ -49,7 +49,7 @@
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px) scale(1.02);
   box-shadow: var(--shadow-lg);
 }
 
@@ -77,7 +77,7 @@
 .page-transition-enter-active {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 0.3s, transform 0.3s;
+  transition: opacity 0.4s, transform 0.4s var(--ease-out-back);
 }
 
 .page-transition-exit {
@@ -91,11 +91,14 @@
 
 /* Enhanced form elements */
 input, select, textarea {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
 }
 
 input:focus, select:focus, textarea:focus {
-  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+  border-color: var(--primary);
+  transform: translateY(-2px);
 }
 
 /* Text highlight styling */
@@ -111,17 +114,47 @@ input:focus, select:focus, textarea:focus {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s var(--ease-out-back);
+}
+
+.glass-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 /* Enhanced button styles */
 button {
-  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275),
-              box-shadow 0.2s ease, 
-              background-color 0.2s ease;
+  transition: transform 0.3s var(--ease-out-back),
+              box-shadow 0.3s ease, 
+              background-color 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 button:active {
   transform: scale(0.98);
+}
+
+button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.6s, height 0.6s, opacity 0.6s;
+}
+
+button:active::after {
+  width: 300px;
+  height: 300px;
+  opacity: 0;
+  transition: 0s;
 }
 
 /* Custom scrollbar */
@@ -142,4 +175,95 @@ button:active {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a1a1a1;
+}
+
+/* Hero section enhancements */
+.hero-content {
+  animation: fadeUpIn 0.8s var(--ease-out-back) forwards;
+}
+
+@keyframes fadeUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Testimonial cards */
+.testimonial-card {
+  transition: all 0.3s var(--ease-out-back);
+  transform-origin: center;
+}
+
+.testimonial-card:hover {
+  transform: scale(1.05) rotate(1deg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Animated gradients */
+.animated-gradient {
+  background: linear-gradient(-45deg, var(--primary), var(--accent), var(--success), var(--primary));
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Floating animations */
+.float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Staggered entrance animations */
+.stagger-item {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.stagger-item.visible {
+  animation: staggerFade 0.5s var(--ease-out-back) forwards;
+}
+
+@keyframes staggerFade {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover link effects */
+.hover-link {
+  position: relative;
+}
+
+.hover-link::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  bottom: -2px;
+  left: 0;
+  background-color: var(--primary);
+  transform: scaleX(0);
+  transform-origin: bottom right;
+  transition: transform 0.3s var(--ease-out-circ);
+}
+
+.hover-link:hover::after {
+  transform: scaleX(1);
+  transform-origin: bottom left;
 }

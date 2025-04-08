@@ -58,6 +58,11 @@
     --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    
+    /* Animation curves */
+    --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out-circ: cubic-bezier(0, 0.55, 0.45, 1);
+    --ease-in-out-quad: cubic-bezier(0.45, 0, 0.55, 1);
   }
 
   .dark {
@@ -110,11 +115,36 @@
     font-family: 'Inter', sans-serif;
     line-height: 1.65;
   }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-medium tracking-tight;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl lg:text-6xl;
+  }
+  
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+  
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+  
+  input, select, textarea, button {
+    font-family: 'Inter', sans-serif;
+  }
 }
 
 /* Enhanced gradient text */
 .gradient-text {
   @apply bg-gradient-to-r from-primary via-primary/90 to-accent bg-clip-text text-transparent;
+}
+
+/* Number gradient for stats */
+.gradient-number {
+  @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
 }
 
 /* Enhanced hero gradient */
@@ -161,6 +191,17 @@
   opacity: 0;
 }
 
+.fade-in-delay-4 {
+  animation: fadeIn 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) 0.4s forwards;
+  opacity: 0;
+}
+
+/* Staggered fade-in */
+.staggered-fade-in {
+  opacity: 0;
+  animation: fadeIn 0.5s cubic-bezier(0.215, 0.610, 0.355, 1.000) forwards;
+}
+
 /* New animations */
 @keyframes slideInRight {
   from {
@@ -198,6 +239,12 @@
 @keyframes shimmer {
   0% { background-position: -1000px 0; }
   100% { background-position: 1000px 0; }
+}
+
+@keyframes wave {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
 .slide-in-right {
@@ -246,11 +293,45 @@
   transform: translateY(-5px);
 }
 
-/* Skeleton loader animations */
+/* Enhanced Skeleton loader animations */
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-pulse {
+  background: linear-gradient(90deg, var(--secondary) 0%, var(--muted) 50%, var(--secondary) 100%);
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.skeleton-wave {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-wave::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  animation: wave 1.5s ease-in-out infinite;
+}
+
+.skeleton-progress {
+  background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  width: 100%;
+  transform-origin: left;
+  animation: progress 2s ease-in-out infinite alternate;
+}
+
+@keyframes progress {
+  from { transform: scaleX(0.2); }
+  to { transform: scaleX(0.8); }
 }
 
 /* Glass morphism effect */
@@ -261,28 +342,80 @@
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
+/* Button ripple effect */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+  pointer-events: none;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
 /* Button animations */
 .button-ripple {
   position: relative;
   overflow: hidden;
 }
 
-.button-ripple::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 150px;
-  height: 150px;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  transform: translate(-50%, -50%) scale(0);
-  opacity: 0;
-  transition: transform 0.5s, opacity 0.5s;
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
 }
 
-.button-ripple:active::after {
-  transform: translate(-50%, -50%) scale(1);
-  opacity: 1;
-  transition: 0s;
+/* Enhanced card hover interactions */
+.interactive-card {
+  transition: all 0.3s var(--ease-out-back);
+}
+
+.interactive-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Form element animations */
+input:focus, select:focus, textarea:focus {
+  animation: focusExpand 0.3s var(--ease-out-circ);
+}
+
+@keyframes focusExpand {
+  0% { transform: scale(0.98); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
+}
+
+/* Animation for content entries */
+.content-entry {
+  transition: all 0.4s var(--ease-out-back);
+}
+
+.content-entry:hover {
+  transform: translateY(-5px);
+}
+
+/* Typewriter effect */
+.typewriter {
+  overflow: hidden;
+  border-right: 0.15em solid var(--primary);
+  white-space: nowrap;
+  animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink-caret {
+  from, to { border-color: transparent }
+  50% { border-color: var(--primary) }
 }
